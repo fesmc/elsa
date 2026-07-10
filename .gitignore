@@ -30,3 +30,7 @@ analysis/Manifest.toml
 
 # Ad-hoc/debug logs
 logs/
+
+# --- Quarto documentation site (docs/) ---------------------------------------
+/docs/_site/
+/docs/.quarto/

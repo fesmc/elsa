@@ -1,0 +1,51 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "index.qmd"
+    - "design.qmd"
+    - "benchmarks/*.qmd"
+
+website:
+  title: "elsa"
+  description: "Isochronal englacial layer tracing for ice-sheet models."
+  site-url: "https://fesmc.github.io/elsa/"
+  repo-url: "https://github.com/fesmc/elsa"
+  repo-actions: [source, issue]
+  page-navigation: true
+  navbar:
+    background: primary
+    search: true
+    left:
+      - text: "Home"
+        href: index.qmd
+      - text: "Design"
+        href: design.qmd
+      - text: "Benchmarks"
+        menu:
+          - text: "physics — advection & layer kernels"
+            href: benchmarks/physics.qmd
+          - text: "interp — grid mapping"
+            href: benchmarks/interp.qmd
+          - text: "column — Nye analytic"
+            href: benchmarks/column.qmd
+          - text: "greenland — 3D offline"
+            href: benchmarks/greenland.qmd
+    right:
+      - icon: github
+        href: "https://github.com/fesmc/elsa"
+        aria-label: GitHub
+
+  sidebar:
+    style: floating
+    collapse-level: 1
+
+format:
+  html:
+    theme:
+      - cosmo
+      - styles.scss
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: wrap

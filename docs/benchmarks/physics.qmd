@@ -1,0 +1,98 @@
+---
+title: "physics"
+subtitle: "Advection and layer kernels — test_physics.x"
+---
+
+## What it tests
+
+`test_physics.x` exercises the kernels in `elsa_physics` directly, as pure
+array-in / array-out routines with no file, no state, and no derived type. It is
+the lowest level of the benchmark suite and the one that pins down the
+correctness of the advection scheme.
+
+Four flow fields advect a layer-thickness blob, and a fifth group checks the
+mass-balance bookkeeping.
+
+Source: [`src/test_physics.f90`](https://github.com/fesmc/elsa/blob/main/src/test_physics.f90).
+Run it with `make run-physics`.
+
+## The advection scheme
+
+elsa advects each isochronal layer with the flux-form continuity equation
+
+$$
+\frac{\partial d}{\partial t} = -\frac{\partial (u\,d)}{\partial x}
+                                -\frac{\partial (v\,d)}{\partial y},
+$$
+
+discretized explicitly, upstream in space, with each cell face upwinded on **its
+own** velocity:
+
+$$
+F_{i+1/2} = \max(u_{i+1/2},0)\,d_i + \min(u_{i+1/2},0)\,d_{i+1}.
+$$
+
+The coupling period is sub-stepped so the outflow from every cell satisfies a
+CFL condition, which is the exact positivity condition for the explicit update.
+The scheme is then unconditionally stable, non-negative, and mass-conserving —
+see [Design](../design.qmd) for the derivation.
+
+## The v2.0 regression
+
+The published v2.0 scheme (Rieckh et al. 2024, Eqs. B5–B8) chooses the upwind
+direction for both x-faces from the sign of a single face velocity. In a
+convergent cell that puts a negative entry on the matrix diagonal, the implicit
+solve loses diagonal dominance, and layer thickness diverges. v2.0 masked this
+with three guards: a cap on the thickness change per step (Eq. B9), a fallback
+when the solution is non-finite, and a skip of all advection where
+$|u| < 0.1\ \mathrm{m/yr}$.
+
+The **convergent flow** and **divergent flow** cases are the regression test.
+They run at a raw (unsubstepped) CFL of ~976 — far outside any explicit
+stability limit — and check that the thickness field stays finite, non-negative
+and mass-conserving **with no cap applied anywhere**. If the scheme were still
+the v2.0 one, the layer thickness would be unbounded here.
+
+## Results
+
+```
+ uniform translation
+   pass   mass conserved              (err  8.48E-16)
+   pass   non-negative
+   pass   centroid transported exact  (err  4.85E-16)
+
+ solid-body rotation
+   pass   mass conserved              (err  5.61E-15)
+   pass   non-negative
+   peak amplitude retained after one revolution:  0.272
+
+ convergent flow (v2.0 regression)   [unsubstepped CFL ~ 976]
+   pass   all finite (no NaN)
+   pass   non-negative
+   pass   mass conserved              (err  3.46E-16)
+   pass   bounded (no cap applied)
+
+ divergent flow (v2.0 regression)    [unsubstepped CFL ~ 976]
+   pass   all finite, non-negative, mass conserved, bounded
+
+ layer bookkeeping (normalize / smb / bmb / reseed)
+   17 checks, all exact to 1e-14
+```
+
+Two results are worth drawing out:
+
+- **Uniform flow transports the first moment exactly.** First-order upwind
+  diffuses the *shape* of the blob, but the centroid still moves by exactly
+  $u\,\Delta t$ — here to $5\times10^{-16}$. That is a property the scheme
+  guarantees regardless of resolution.
+- **Rotation retains 27% of the peak after a full revolution.** First-order
+  upwind is heavily diffusive; this number is reported, not asserted, and is the
+  figure to beat if the spatial order is ever raised.
+
+## Layer bookkeeping
+
+The same test covers the mass-balance kernels: normalization onto the host ice
+thickness, surface accumulation and ablation eating the stack from the top,
+basal melt from the bottom, and the reseeding of a column the mass balance
+emptied that the host still has ice in (which lands at the bed — see
+[Design](../design.qmd)). All seventeen checks are exact to $10^{-14}$.

@@ -1,0 +1,64 @@
+---
+title: "interp"
+subtitle: "Grid mapping — test_interp.x"
+---
+
+## What it tests
+
+`test_interp.x` checks the maps in `elsa_interp` that carry the host model's
+fields onto elsa's grid. Every map is *separable* — the 2D weight is the outer
+product of a weight along x and a weight along y — and exact, and each is
+precomputed once at init and applied as a fixed stencil thereafter. So the
+benchmark asserts exactness properties, not tolerances.
+
+Source: [`src/test_interp.f90`](https://github.com/fesmc/elsa/blob/main/src/test_interp.f90).
+Run it with `make run-interp`.
+
+## The three maps
+
+| Field(s) | Source → target | Method |
+|---|---|---|
+| `H_ice`, `smb`, `bmb` | host cells → elsa cells | area-weighted (conservative) |
+| `ux` | host velocity → elsa acx faces | bilinear |
+| `uy` | host velocity → elsa acy faces | bilinear |
+
+Vertically, the host supplies velocity on `nz` sigma levels; elsa needs the
+*thickness-average* over each isochronal layer, which — since the profile is
+piecewise linear — integrates exactly.
+
+## Results
+
+```
+ conservative remap
+   grid_factor 1.0 -> 10 x 10   mass conserved (0),  identity to the source
+   grid_factor 2.0 ->  5 x  5   mass conserved (0),  equals a 2x2 box mean
+   grid_factor 2.5 ->  4 x  4   mass conserved (3.0e-16)
+
+ bilinear velocity onto faces
+   stagger = acx_acy   ux, uy reproduce a linear field exactly
+   stagger = aa        ux, uy reproduce a linear field exactly
+
+ layer-mean velocity
+   constant profile exact
+   linear profile -> layer midpoint value
+   sum(u_k d_k) = exact integral   (err 1.7e-16)
+```
+
+Three things this establishes:
+
+- **Non-integer coarsening conserves mass.** At `grid_factor = 2.5`, elsa's
+  grid tiles the host's without an integer ratio, and total ice mass is
+  preserved to $3\times10^{-16}$. v2.0 required `grid_factor` to divide both
+  `nx` and `ny`; it warned and continued otherwise, silently losing mass.
+
+- **Staggering is a coordinate, not a code path.** The bilinear map reproduces a
+  linear field for both `"acx_acy"` and `"aa"` because `stagger` only shifts
+  where the host's velocity samples are taken from; nothing downstream branches
+  on it. Any host grid — staggered or centred, any resolution ratio — reaches
+  elsa's faces through the same code.
+
+- **The vertical average is exact and unbiased.** For a linear profile the
+  layer-mean equals the value at the layer midpoint, and the thickness-weighted
+  sum equals the exact integral to $2\times10^{-16}$. v2.0 sampled the layer's
+  *upper interface* instead, biasing every layer toward the faster ice above it
+  — here by $+1.13\ \mathrm{m/yr}$ for the test profile.

@@ -20,6 +20,9 @@ reimplementation of the Bergen ELSA v2.0
 not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
+Documentation, including a page per benchmark, is published at
+[fesmc.github.io/elsa](https://fesmc.github.io/elsa/).
+
 > **Status: under construction.** The library, its public API, NetCDF output,
 > restart, both benchmarks and the Julia analysis are in place: `make check`
 > passes serial, OpenMP and under bounds checking, and `make validate` passes.

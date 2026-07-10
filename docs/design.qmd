@@ -1,0 +1,13 @@
+---
+title: "Design"
+subtitle: "Where elsa departs from the published v2.0 scheme, and why"
+toc: true
+toc-depth: 2
+---
+
+The page below is rendered from `docs/DESIGN.md`, the design record kept in the
+source tree. It is the single source of truth for the modelling and numerical
+decisions; every departure from Rieckh et al. (2024) is stated here with its
+consequence, because each one changes results.
+
+{{< include DESIGN.md >}}
