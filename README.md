@@ -21,17 +21,17 @@ not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
 > **Status: under construction.** The library, its public API, NetCDF output,
-> restart and both benchmarks are in place: `make check` passes serial, OpenMP,
-> and under bounds checking. The Yelmox coupling and the Julia analysis are
-> still being written.
+> restart, both benchmarks and the Julia analysis are in place: `make check`
+> passes serial, OpenMP and under bounds checking, and `make validate` passes.
+> The Yelmox coupling is still to come.
 
 ## Install
 
-elsa is a [configme](https://github.com/fesmc/configme) package. It depends on
-[fesm-utils](https://github.com/fesmc/fesm-utils) for its `ncio`, `nml`,
-`staggering` and `coords` modules, and links the LIS solver that fesm-utils
-vendors and builds — so there is no system-wide LIS or netCDF path to set by
-hand.
+elsa is a [configme](https://github.com/fesmc/configme) package. Its only
+dependency is [fesm-utils](https://github.com/fesmc/fesm-utils), for the `ncio`
+and `nml` modules. The advection is an explicit sub-stepped upwind scheme, so
+there is no linear solver and no LIS — v2.0 needed one, and needed you to build
+and locate it.
 
 ```bash
 configme install elsa --only     # elsa + fesm-utils
@@ -48,10 +48,12 @@ configme -m macbook -c gfortran    # writes the repo-root Makefile
 
 ```bash
 make elsa-static     # libelsa/include/libelsa.a
+make all             # the library and every benchmark
 make usage           # all targets
 ```
 
-Add `debug=1` to any build for bounds checking and floating-point traps.
+Add `openmp=1` to thread the layer loop, or `debug=3` for bounds checking and
+floating-point traps.
 
 ## Benchmarks
 
@@ -123,9 +125,28 @@ run that never stopped, which `test_greenland.x` asserts.
 Build with `openmp=1` to thread the layer loop. The layers never exchange mass,
 so the result is bit-identical to the serial one at any thread count.
 
-Diagnostics and figures are Julia, under `analysis/`, plotted with CairoMakie:
-the Fortran benchmarks assert and exit nonzero, Julia validates quantitatively
-and draws.
+## Analysis
+
+```bash
+make validate        # runs check, then the Julia validation and figures
+```
+
+The division of labour: the Fortran benchmarks assert structural properties and
+exit nonzero; Julia checks the physics against closed-form answers and draws.
+`analysis/` is a Julia project using CairoMakie and NCDatasets, and the figures
+land in `plots/`:
+
+  - `column_nye.png` — modelled isochrone height against Nye's analytic solution
+    and against elsa's own discrete recursion.
+  - `greenland_isochrones.png` — the depth of the oldest isochrone as a map, and
+    the full layer stack along a transect. This second panel is the view the
+    isochronal scheme exists to produce: the layers a model compares against
+    radiostratigraphy.
+
+`analysis/elsa_analysis.jl` carries the shared readers. The key thing it knows is
+that elsa's vertical axis is time: layer `k` is bounded below by the isochrone
+laid down at `layer_time[k]`, so that isochrone sits at `dsum_iso[:,:,k-1]`, and
+the initialization layers have no `layer_time` at all.
 
 ## License
 

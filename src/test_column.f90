@@ -30,6 +30,8 @@ program test_column
     real(wp), parameter :: TIME_0  = 0.0_wp         ! [yr]
     real(wp), parameter :: TIME_1  = 20000.0_wp     ! [yr]
 
+    character(len=*), parameter :: FILE_OUT = "output/column/elsa.nc"
+
     integer :: n_fail
 
     n_fail = 0
@@ -66,17 +68,19 @@ contains
 
     end subroutine check
 
-    subroutine run_divide(els,group,dt)
+    subroutine run_divide(els,group,dt,write_output)
         ! Drive elsa with a steady, horizontally uniform ice divide.
-        type(elsa_class), intent(inout) :: els
-        character(len=*), intent(in)    :: group
-        real(wp),         intent(in)    :: dt
+        type(elsa_class),  intent(inout) :: els
+        character(len=*),  intent(in)    :: group
+        real(wp),          intent(in)    :: dt
+        logical, optional, intent(in)    :: write_output
 
         real(wp) :: x(NX), y(NY), zeta(NZ)
         real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
         real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
         real(wp) :: time
-        integer  :: i, n, n_steps
+        integer  :: i, n, n_steps, n_out
+        logical  :: do_write
 
         do i = 1, NX
             x(i) = (real(i,wp) - 0.5_wp)*DX
@@ -94,12 +98,26 @@ contains
         ux    = 0.0_wp
         uy    = 0.0_wp
 
+        do_write = .false.
+        if (present(write_output)) do_write = write_output
+
         call elsa_init(els,"par/test_column.nml",group,TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+
+        if (do_write) then
+            call elsa_write_init(els,FILE_OUT,TIME_0)
+            call elsa_write_step(els,FILE_OUT,TIME_0,1)
+            n_out = 1
+        end if
 
         n_steps = nint((TIME_1-TIME_0)/dt)
         do n = 1, n_steps
             time = TIME_0 + real(n,wp)*dt
             call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
+
+            if (do_write .and. mod(n,20) .eq. 0) then
+                n_out = n_out + 1
+                call elsa_write_step(els,FILE_OUT,time,n_out)
+            end if
         end do
 
     end subroutine run_divide
@@ -119,7 +137,7 @@ contains
         write(*,*) ""
         write(*,*) " discrete layer thinning"
 
-        call run_divide(els,"column",DT)
+        call run_divide(els,"column",DT,write_output=.true.)
 
         r     = H_CONST/(H_CONST + ACC*DT)
         n_add = size(els%par%time_add)

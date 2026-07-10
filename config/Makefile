@@ -131,7 +131,7 @@ greenland: elsa-static
 	@echo "    $(bindir)/test_greenland.x is ready."
 	@echo " "
 
-.PHONY: all usage clean check run-physics run-interp run-column run-greenland
+.PHONY: all usage clean check validate run-physics run-interp run-column run-greenland
 all: physics interp column greenland
 
 ###############################################
@@ -147,6 +147,7 @@ run-interp: interp
 	./$(bindir)/test_interp.x
 
 run-column: column
+	@mkdir -p output/column
 	./$(bindir)/test_column.x
 
 # netCDF will not create the output directory, so a fresh clone cannot run the
@@ -160,6 +161,13 @@ check: run-physics run-interp run-column run-greenland
 	@echo " "
 	@echo "    All benchmarks passed."
 	@echo " "
+
+# Quantitative validation and the figures, in Julia. The Fortran benchmarks
+# assert structural properties and exit nonzero; this checks the physics against
+# closed-form answers and draws into plots/. Depends on `check` for the output.
+validate: check
+	julia --project=analysis -e 'using Pkg; Pkg.instantiate()'
+	julia --project=analysis analysis/validate.jl
 
 usage:
 	@echo ""
@@ -177,6 +185,7 @@ usage:
 	@echo " make run-column   : runs the Nye analytic benchmark"
 	@echo " make run-greenland: runs the 3D Greenland benchmark"
 	@echo " make check        : runs all benchmarks; nonzero exit on any failure"
+	@echo " make validate     : runs check, then the Julia validation and figures"
 	@echo ""
 	@echo " make clean        : cleans object files and programs"
 	@echo ""
