@@ -35,6 +35,21 @@ ifeq ($(debug), 2)
 	DFLAGS = $(DFLAGS_PROFILE)
 endif
 
+# debug=3: as debug=1, but without trapping underflow.
+#
+# elsa advects layer thickness with an explicit upwind scheme. A cell with
+# outflow through one face and no inflow drains geometrically, so its thickness
+# decays through the denormal range on its way to zero. That is IEEE-defined and
+# harmless, but gfortran's DFLAGS_DEBUG traps it and aborts. The substitution
+# below drops that one trap and leaves -fcheck=all and the invalid / zero /
+# overflow traps in place. It is a no-op for the Intel fragments, whose -fpe0
+# does not trap underflow to begin with.
+comma := ,
+DFLAGS_DEBUG_ELSA = $(subst $(comma)underflow,,$(DFLAGS_DEBUG))
+ifeq ($(debug), 3)
+	DFLAGS = $(DFLAGS_DEBUG_ELSA)
+endif
+
 ###############################################
 ##
 ## List of elsa rules and source files
@@ -107,7 +122,10 @@ usage:
 	@echo " make check        : runs all benchmarks; nonzero exit on any failure"
 	@echo ""
 	@echo " make clean        : cleans object files and programs"
-	@echo " Add debug=1 to any build for bounds checking and floating-point traps."
+	@echo ""
+	@echo " debug=1 : bounds checking and floating-point traps (traps underflow)"
+	@echo " debug=2 : optimized, with profiling output"
+	@echo " debug=3 : as debug=1, without the underflow trap -- use this one"
 	@echo ""
 
 clean:
