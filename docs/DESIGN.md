@@ -75,9 +75,28 @@ so that
       - d^{t+1}(i-1) · (Δt/Δx)·max(u(i-½),0)   =   d^t(i)
 
 The diagonal is `≥ 1` and the off-diagonals are `≤ 0` for any velocity field.
-The matrix is a strictly diagonally dominant M-matrix, so the scheme is
-unconditionally stable, positivity-preserving, and exactly mass-conserving.
 `u = 0` needs no special case.
+
+`A` is **column** diagonally dominant, not row diagonally dominant. Each
+off-diagonal entry in column `j` is the coefficient with which cell `j` feeds a
+neighbour, so the off-diagonal column sum is exactly the total outflow from `j`,
+and
+
+    A(j,j) - Σ_{i≠j} |A(i,j)|  =  1     exactly, for every j and every u
+
+A strongly convergent cell has inflow far exceeding outflow, so its *row* is not
+dominant at all — the margin goes negative. This distinction matters when
+choosing a preconditioner, and it is easy to get backwards.
+
+Three consequences follow, all verified numerically at CFL ≫ 1:
+
+  - `A` is a Z-matrix with strictly dominant columns and positive diagonal, so
+    it is a nonsingular M-matrix and `A⁻¹ ≥ 0`. **Layer thicknesses stay
+    non-negative** for any velocity field and any timestep.
+  - The interior column sums of `A` are exactly `1`, hence
+    `Σ d^{t+1} = Σ d^t` up to boundary fluxes. **Mass is conserved to roundoff.**
+  - `‖A⁻¹‖₁ = 1`, so `‖d^{t+1}‖₁ ≤ ‖d^t‖₁`. **Unconditionally stable in the
+    mass norm**, which is the norm that matters for a thickness field.
 
 **Consequence.** `d_max` (B9), the non-finite fallback, and the `0.1 m/yr`
 velocity threshold are all deleted. None is ported. Being an M-matrix also
