@@ -1,0 +1,261 @@
+[
+  {
+    "objectID": "benchmarks/physics.html",
+    "href": "benchmarks/physics.html",
+    "title": "physics",
+    "section": "",
+    "text": "test_physics.x exercises the kernels in elsa_physics directly, as pure array-in / array-out routines with no file, no state, and no derived type. It is the lowest level of the benchmark suite and the one that pins down the correctness of the advection scheme.\nFour flow fields advect a layer-thickness blob, and a fifth group checks the mass-balance bookkeeping.\nSource: src/test_physics.f90. Run it with make run-physics."
+  },
+  {
+    "objectID": "benchmarks/physics.html#what-it-tests",
+    "href": "benchmarks/physics.html#what-it-tests",
+    "title": "physics",
+    "section": "",
+    "text": "test_physics.x exercises the kernels in elsa_physics directly, as pure array-in / array-out routines with no file, no state, and no derived type. It is the lowest level of the benchmark suite and the one that pins down the correctness of the advection scheme.\nFour flow fields advect a layer-thickness blob, and a fifth group checks the mass-balance bookkeeping.\nSource: src/test_physics.f90. Run it with make run-physics."
+  },
+  {
+    "objectID": "benchmarks/physics.html#the-advection-scheme",
+    "href": "benchmarks/physics.html#the-advection-scheme",
+    "title": "physics",
+    "section": "The advection scheme",
+    "text": "The advection scheme\nelsa advects each isochronal layer with the flux-form continuity equation\n\\[\n\\frac{\\partial d}{\\partial t} = -\\frac{\\partial (u\\,d)}{\\partial x}\n                                -\\frac{\\partial (v\\,d)}{\\partial y},\n\\]\ndiscretized explicitly, upstream in space, with each cell face upwinded on its own velocity:\n\\[\nF_{i+1/2} = \\max(u_{i+1/2},0)\\,d_i + \\min(u_{i+1/2},0)\\,d_{i+1}.\n\\]\nThe coupling period is sub-stepped so the outflow from every cell satisfies a CFL condition, which is the exact positivity condition for the explicit update. The scheme is then unconditionally stable, non-negative, and mass-conserving — see Design for the derivation."
+  },
+  {
+    "objectID": "benchmarks/physics.html#the-v2.0-regression",
+    "href": "benchmarks/physics.html#the-v2.0-regression",
+    "title": "physics",
+    "section": "The v2.0 regression",
+    "text": "The v2.0 regression\nThe published v2.0 scheme (Rieckh et al. 2024, Eqs. B5–B8) chooses the upwind direction for both x-faces from the sign of a single face velocity. In a convergent cell that puts a negative entry on the matrix diagonal, the implicit solve loses diagonal dominance, and layer thickness diverges. v2.0 masked this with three guards: a cap on the thickness change per step (Eq. B9), a fallback when the solution is non-finite, and a skip of all advection where \\(|u| &lt; 0.1\\ \\mathrm{m/yr}\\).\nThe convergent flow and divergent flow cases are the regression test. They run at a raw (unsubstepped) CFL of ~976 — far outside any explicit stability limit — and check that the thickness field stays finite, non-negative and mass-conserving with no cap applied anywhere. If the scheme were still the v2.0 one, the layer thickness would be unbounded here."
+  },
+  {
+    "objectID": "benchmarks/physics.html#results",
+    "href": "benchmarks/physics.html#results",
+    "title": "physics",
+    "section": "Results",
+    "text": "Results\n uniform translation\n   pass   mass conserved              (err  8.48E-16)\n   pass   non-negative\n   pass   centroid transported exact  (err  4.85E-16)\n\n solid-body rotation\n   pass   mass conserved              (err  5.61E-15)\n   pass   non-negative\n   peak amplitude retained after one revolution:  0.272\n\n convergent flow (v2.0 regression)   [unsubstepped CFL ~ 976]\n   pass   all finite (no NaN)\n   pass   non-negative\n   pass   mass conserved              (err  3.46E-16)\n   pass   bounded (no cap applied)\n\n divergent flow (v2.0 regression)    [unsubstepped CFL ~ 976]\n   pass   all finite, non-negative, mass conserved, bounded\n\n layer bookkeeping (normalize / smb / bmb / reseed)\n   17 checks, all exact to 1e-14\nTwo results are worth drawing out:\n\nUniform flow transports the first moment exactly. First-order upwind diffuses the shape of the blob, but the centroid still moves by exactly \\(u\\,\\Delta t\\) — here to \\(5\\times10^{-16}\\). That is a property the scheme guarantees regardless of resolution.\nRotation retains 27% of the peak after a full revolution. First-order upwind is heavily diffusive; this number is reported, not asserted, and is the figure to beat if the spatial order is ever raised."
+  },
+  {
+    "objectID": "benchmarks/physics.html#layer-bookkeeping",
+    "href": "benchmarks/physics.html#layer-bookkeeping",
+    "title": "physics",
+    "section": "Layer bookkeeping",
+    "text": "Layer bookkeeping\nThe same test covers the mass-balance kernels: normalization onto the host ice thickness, surface accumulation and ablation eating the stack from the top, basal melt from the bottom, and the reseeding of a column the mass balance emptied that the host still has ice in (which lands at the bed — see Design). All seventeen checks are exact to \\(10^{-14}\\)."
+  },
+  {
+    "objectID": "benchmarks/greenland.html",
+    "href": "benchmarks/greenland.html",
+    "title": "greenland",
+    "section": "",
+    "text": "test_greenland.x runs elsa on a real ice sheet: the Greenland domain at 16 km, forced offline from a Yelmo restart (data/initmip-grl-16km/yelmo_restart.nc, the same file the tracer package uses, so the two schemes can be compared on identical host fields).\nThe restart carries no spun-up isochrone field, so there is no known answer to compare against. This is a structural check — against a real velocity field, real staggering, real non-uniform sigma levels, and a real ice margin — rather than a comparison with a closed-form solution.\nSource: src/test_greenland.f90. Run it with make run-greenland; it writes output/GRL-16KM/elsa.nc."
+  },
+  {
+    "objectID": "benchmarks/greenland.html#what-it-tests",
+    "href": "benchmarks/greenland.html#what-it-tests",
+    "title": "greenland",
+    "section": "",
+    "text": "test_greenland.x runs elsa on a real ice sheet: the Greenland domain at 16 km, forced offline from a Yelmo restart (data/initmip-grl-16km/yelmo_restart.nc, the same file the tracer package uses, so the two schemes can be compared on identical host fields).\nThe restart carries no spun-up isochrone field, so there is no known answer to compare against. This is a structural check — against a real velocity field, real staggering, real non-uniform sigma levels, and a real ice margin — rather than a comparison with a closed-form solution.\nSource: src/test_greenland.f90. Run it with make run-greenland; it writes output/GRL-16KM/elsa.nc."
+  },
+  {
+    "objectID": "benchmarks/greenland.html#staggering-in-practice",
+    "href": "benchmarks/greenland.html#staggering-in-practice",
+    "title": "greenland",
+    "section": "Staggering, in practice",
+    "text": "Staggering, in practice\nYelmo writes ux/uy on staggered acx/acy nodes. elsa’s advection wants face velocities — which is exactly what acx/acy nodes are — so they are handed over as-is with stagger = \"acx_acy\" and nothing is destaggered. The tracer package reads the same file and does destagger to cell centres, because it wants cell-centred velocities. The contrast is the whole point of expressing staggering as a coordinate rather than a conversion."
+  },
+  {
+    "objectID": "benchmarks/greenland.html#what-is-checked",
+    "href": "benchmarks/greenland.html#what-is-checked",
+    "title": "greenland",
+    "section": "What is checked",
+    "text": "What is checked\nEvery update, on both a native (grid_factor = 1) and a coarsened (grid_factor = 2.5) run:\n\nlayer thicknesses stay finite and non-negative;\nevery column sums to the host’s ice thickness (closure error \\(0\\) at grid_factor = 1, \\(\\sim10^{-15}\\) coarsened);\nice-free columns carry no layers;\nisochrones stay ordered — younger ice sits higher, and none escapes the ice column;\nat grid_factor = 1, the conservative map reproduces the host ice thickness exactly and conserves volume;\nreseeding of emptied margin columns stays rare (a handful of thin cells per step, out of ~7000)."
+  },
+  {
+    "objectID": "benchmarks/greenland.html#the-output",
+    "href": "benchmarks/greenland.html#the-output",
+    "title": "greenland",
+    "section": "The output",
+    "text": "The output\n\n\n\n\n\n\nFigure 1: Left: the depth below the surface of the oldest isochrone, across the ice sheet. Right: the full layer stack along a transect, coloured by isochrone age, with the ice surface in black. The right panel is the view the isochronal scheme exists to produce — the layers a model would compare against radiostratigraphy."
+  },
+  {
+    "objectID": "benchmarks/greenland.html#restart-is-bit-identical",
+    "href": "benchmarks/greenland.html#restart-is-bit-identical",
+    "title": "greenland",
+    "section": "Restart is bit-identical",
+    "text": "Restart is bit-identical\nThe benchmark also runs the restart round-trip: a continuous run, and the same run stopped halfway, written to a restart file, and picked up again. The two end with\n\\[\n\\max_{i,j,k}\\bigl|\\,d^{\\text{restart}}_{ijk} - d^{\\text{continuous}}_{ijk}\\,\\bigr| = 0.\n\\]\nBit-identical, not merely close. That is the only check strong enough to catch a piece of state — n_top, the isochrone schedule, the previous-step ice thickness — being reconstructed rather than carried. See Design for what the restart stores and why d_iso must be written in double precision."
+  },
+  {
+    "objectID": "benchmarks/greenland.html#performance",
+    "href": "benchmarks/greenland.html#performance",
+    "title": "greenland",
+    "section": "Performance",
+    "text": "Performance\nAt 16 km (19 186 cells, 20 layers) a 2000-year run spends 0.38 s in elsa_update on one core, and 0.15 s on eight. Cost is linear in simulated time and in layer count, and the total sub-step count does not depend on the coupling period. Extrapolating to the Rieckh et al. (2024) control configuration — 160 kyr, ~415 layers on average — is of order 20 minutes on a single core, against the ~24 h of ELSA time implied by that paper’s Fig. 9. (Different machines, so treat it as an order-of-magnitude comparison.)"
+  },
+  {
+    "objectID": "design.html",
+    "href": "design.html",
+    "title": "Design",
+    "section": "",
+    "text": "The page below is rendered from docs/DESIGN.md, the design record kept in the source tree. It is the single source of truth for the modelling and numerical decisions; every departure from Rieckh et al. (2024) is stated here with its consequence, because each one changes results."
+  },
+  {
+    "objectID": "design.html#what-elsa-is",
+    "href": "design.html#what-elsa-is",
+    "title": "Design",
+    "section": "What elsa is",
+    "text": "What elsa is\nA stack of isochronal layers on a 2D grid. The vertical axis is time: each layer is bounded by two isochrones and never exchanges mass with its neighbours. Layers thin as ice flows toward the margin, and vertical motion emerges from changes in the individual layer thicknesses rather than from a vertical velocity. This eliminates vertical numerical diffusion by construction, which is the whole point of the scheme.\nelsa is not an ice-sheet model. It is driven by a host model, which supplies horizontal velocity, ice thickness, and surface and basal mass balance, and which elsa never modifies."
+  },
+  {
+    "objectID": "design.html#the-advection-scheme",
+    "href": "design.html#the-advection-scheme",
+    "title": "Design",
+    "section": "The advection scheme",
+    "text": "The advection scheme\n\nWhat R24 does\nLayer thickness d obeys the flux-form continuity equation (R24 Eq. B1)\n∂d/∂t = -∂(ud)/∂x - ∂(vd)/∂y\ndiscretized implicitly in time, upstream in space, with velocities at the cell faces. For u &gt; 0, v &gt; 0 this gives (R24 Eq. B5)\nd^t(i,j) = d^{t+1}(i,j) · [1 + (Δt/Δx)·u(i+½,j) + (Δt/Δy)·v(i,j+½)]\n         - d^{t+1}(i-1,j) · (Δt/Δx)·u(i-½,j)\n         - d^{t+1}(i,j-1) · (Δt/Δy)·v(i,j-½)\nwith three companion cases (Eqs. B6–B8) for the other sign combinations, and the system A·d^{t+1} = d^t solved with LIS.\n\n\nThe defect\nEquations B5–B8 select the upwind direction for both x-faces from a single sign test on u(i+½,j) (and both y-faces from v(i,j+½)). But the flux through face i-½ is upwinded according to u(i-½,j), which may have the opposite sign.\nIn a convergent cell, u(i-½,j) &gt; 0 &gt; u(i+½,j), Eq. B6 is selected and the main diagonal becomes 1 - (Δt/Δx)·u(i-½,j), which is negative for u(i-½,j) &gt; Δx/Δt. The matrix loses diagonal dominance and the solve produces unbounded layer thicknesses.\nThis is the instability R24 documents in Sect. 3.5 — “layer thickness can become unrealistically large during one advection step… often at the ice-sheet boundaries where velocities are large” — and works around with a maximum allowed thickness change per step, d_max = 100 + 10·update_factor + layer_resolution/10 (Eq. B9). The v2.0 code carries two further guards: a fallback to the previous value whenever the solution is non-finite, and a skip of all advection where |u| &lt; 0.1 m/yr, commented “using 0 is unstable”.\nZero velocity is not unstable. Sign-changing velocity is.\n\n\nThe fix: upwind each face on its own velocity\nF(i+½) = max(u(i+½),0)·d(i) + min(u(i+½),0)·d(i+1)\nF(i-½) = max(u(i-½),0)·d(i-1) + min(u(i-½),0)·d(i)\n\n∂d(i)/∂t = -[F(i+½) - F(i-½)]/Δx   (and likewise in y)\nZero velocity needs no special case; sign reversal across a cell needs no special case. d_max (B9), the non-finite fallback, and the 0.1 m/yr threshold are all deleted. None is ported.\nWritten implicitly this yields a matrix with diagonal ≥ 1 and off-diagonals ≤ 0. It is column diagonally dominant, not row diagonally dominant: each off-diagonal entry in column j is the coefficient with which cell j feeds a neighbour, so the off-diagonal column sum is exactly the total outflow from j, and\nA(j,j) - Σ_{i≠j} |A(i,j)|  =  1     exactly, for every j and every u\nA strongly convergent cell has inflow far exceeding outflow, so its row is not dominant at all — the margin goes negative. It is easy to get this backwards. Three consequences follow, all verified numerically at CFL ≫ 1:\n\nA is a Z-matrix with strictly dominant columns and positive diagonal, so it is a nonsingular M-matrix and A⁻¹ ≥ 0: layer thicknesses stay non-negative for any velocity field and any timestep.\nThe interior column sums are exactly 1, so Σ d^{t+1} = Σ d^t up to boundary fluxes: mass is conserved to roundoff.\n‖A⁻¹‖₁ = 1, so ‖d^{t+1}‖₁ ≤ ‖d^t‖₁: unconditionally stable in the mass norm, which is the norm that matters for a thickness field.\n\n\n\nThe time discretization: explicit, sub-stepped\nelsa evaluates the same fluxes explicitly, sub-stepping the coupling period so that the outflow rate obeys\nΔt_sub · [ (max(u(i+½),0) - min(u(i-½),0))/Δx\n         + (max(v(j+½),0) - min(v(j-½),0))/Δy ]  ≤  CFL   ≤ 1\nfor every cell. This is the exact positivity condition for the explicit update: the coefficient multiplying d(i,j) is 1 - Δt·r(i,j), and everything else entering the cell is non-negative. The substep count is computed per layer, per coupling step, from the actual velocity field.\nExplicit upwinding under this condition inherits the same three guarantees listed above — non-negativity, exact mass conservation, L1 stability — and adds none of the extra damping the implicit solve applies on top of the upwind truncation error. For a model whose purpose is not smearing layers, that matters.\nThere is no linear solve, so LIS is not a dependency of elsa. R24 notes “Its only dependency is the Library of Iterative Solvers”; this implementation has none beyond fesm-utils.\nThe reasoning, at the R24 CTRL configuration (16 km, CP = 10 yr, u_max ≈ 12 km/yr):\n\nImplicit BiCG to R24’s -tol 1.0e-12 runs ~30–50 iterations, each a 5-point matvec plus vector work: order 800 flops/cell. Plus 5·nx·ny lis_matrix_set_value calls per layer per coupling step.\nExplicit needs ⌈u_max·Δt/Δx⌉ = 8 substeps at ~15 flops each: order 120 flops/cell. No assembly, no solver objects, no library calls.\n\nThe asymptotics are the same, not just the constant. Explicit cost grows as nl·N·(u_max Δt/Δx) ∝ nl/Δx³. But Krylov iteration count on an advection-dominated M-matrix grows like the characteristic path length, O(1/Δx), absent a strong preconditioner — so the implicit cost is also ∝ nl/Δx³, with a worse constant.\nAssembling the nl layers into one block-diagonal system would have been worse still: the blocks are decoupled, so a Krylov method on the whole thing iterates until the worst layer converges while the rest pay full matvec cost, and its Krylov vectors are nl·N long rather than N.\nConsequence. A large coupling period no longer buys speed: cost is now roughly proportional to simulated time regardless of CP, because the substep count absorbs it. This is the intended trade. R24’s own Figs. 7–8 show CP = 200 already carries 40–80 m RMSE, so the cheap-large-CP regime was not one worth preserving. grid_factor and layer_resolution remain the effective levers for ensemble cost, and Fig. 9 shows they always were the larger ones.\n\n\nBoundaries\nZero normal flux at the domain edge, so global mass is conserved exactly. v2.0 instead froze layer thickness at boundary cells. Ice reaching the elsa domain boundary is a host-domain problem, not something elsa should paper over."
+  },
+  {
+    "objectID": "design.html#the-update-sequence",
+    "href": "design.html#the-update-sequence",
+    "title": "Design",
+    "section": "The update sequence",
+    "text": "The update sequence\nelsa_update receives an absolute time and does nothing unless a coupling period has elapsed. When it fires, in order:\n\nMap H_ice, smb, bmb and the velocities onto elsa’s grid.\nNormalize the layer stack onto H_ice_prev — the host thickness the incoming velocities were computed on.\nAdd smb·dt to the top layer, bmb·dt to the bottom, exhausting layers in turn where the balance is negative.\nAccumulate dsum, then take the layer-mean velocity at every face.\nAdvect each layer independently.\nReseed any column elsa emptied that the host still has ice in (below).\nNormalize onto H_ice. Horizontal layer advection is not the host’s mass conservation, so this is the drift correction. Relative layer thicknesses are unchanged.\nLay down any isochrone whose time has been reached.\n\nSteps 2 and 6 are where elsa’s vertical motion comes from. It never computes a vertical velocity: adding accumulation on top and renormalizing the column multiplies every layer height by H/(H + a·dt), which is Nye’s uniform vertical strain in the limit dt -&gt; 0. test_column.x asserts both the discrete result (exact to 5e-15) and its first-order convergence onto z = H·exp(-a·t/H).\nelsa owns H_ice_prev and the isochrone schedule. v2.0 made the driver hand-manage the previous ice thickness across two lines 180 apart in yelmox_elsa.f90 and wrap the call in its own its_time check.\nWhere layer_resolution &lt; dt_coupling, more than one isochrone falls inside a coupling period. v2.0 rejected that configuration at init; elsa lays down each of them (the extra layers simply receive no accumulation) and warns at init.\n\nEmptied columns\nSurface ablation removes ice from the top layer downward and stops when the column runs out — it cannot remove ice that is not there. Where -smb·dt exceeds the whole column, that leaves it at exactly zero, and the normalization has nothing to rescale: the column is dead for the rest of the run. v2.0 has the same hole — normalise_d zeroes a column whose sum is not positive, silently and permanently.\nOn the 16 km Greenland benchmark, 85 of 7204 ice cells satisfy -smb·dt &gt; H at dt_coupling = 50 yr. All are thin margin cells (3–244 m against a median ice thickness of 1718 m). Advection refills most of them; about nine per step do not recover.\nelsa gives those columns the host’s ice back, in layer 1, at the bed. Ablation eats a column from the top, so the last ice standing before exhaustion is the deepest; putting the survivor there is the consistent continuation of the process that destroyed the column, and it is where basal freeze-on already goes. Reseeding at the top would instead claim the ice is young, contradicting the process that removed it.\nThis is defined behaviour for an under-determined state — elsa cannot date ice it believes it removed — not a correction to a bug. It is counted, not silent: now%n_reseed (last update) and now%n_reseed_total, with a note on first occurrence. A large or growing per-step count means dt_coupling is too long, or the forcing is inconsistent.\n\n\nThe face column\nThe layer-mean velocity needs the column geometry at each face. elsa takes it as the average of the two cell columns the face separates, so dsum_face(n_top) = H_face holds by construction — including at the margin, where one neighbour is ice-free and the face thickness is half the ice-covered cell’s. Mapping the host’s H straight onto a face grid with its own conservative weights would not stay consistent with elsa’s own layer stack."
+  },
+  {
+    "objectID": "design.html#vertical-interpolation-of-the-host-velocity",
+    "href": "design.html#vertical-interpolation-of-the-host-velocity",
+    "title": "Design",
+    "section": "Vertical interpolation of the host velocity",
+    "text": "Vertical interpolation of the host velocity\nR24 states only that host velocities are “linearly interpolated in the vertical… onto the isochronal grid”. The v2.0 code evaluates them at dsum(i,j,iz), the upper interface of layer iz.\nIn the flux form ∂d/∂t = -∇·(ū d), the velocity that transports layer iz is its thickness-average\nū(iz) = (1/d(iz)) · ∫ over [dsum(iz-1), dsum(iz)] of u(z) dz\nSampling at the upper interface instead biases every layer toward the faster ice above it, systematically over-advecting the stack. Since u(z) is piecewise-linear on the host’s vertical grid, the integral is exact and cheap.\nConsequence. elsa uses the layer-mean velocity. Deep layers advect more slowly than in v2.0; the effect grows with layer thickness, so it is largest for coarse layer_resolution and near the bed."
+  },
+  {
+    "objectID": "design.html#grids-staggering-and-the-host-contract",
+    "href": "design.html#grids-staggering-and-the-host-contract",
+    "title": "Design",
+    "section": "Grids, staggering, and the host contract",
+    "text": "Grids, staggering, and the host contract\n\nVertical\nelsa requires host velocities on nz levels co-located with a strictly ascending sigma axis zeta, with zeta(1) = 0 at the bed and zeta(nz) = 1 at the surface, and size(zeta) == size(ux,3). This is checked at elsa_init. It is exactly Yelmo’s zeta_aa convention, and exactly the contract tracer states, so the two packages can be compared directly on the same host fields.\nThis resolves an inconsistency in v2.0, where the offline path read nz+1 values from zeta_aa.txt into an nz-element array while the coupled path received Yelmo’s nz.\n\n\nHorizontal\nThe scheme wants velocities at cell faces (R24 App. B). Rather than treat that as two code paths, stagger declares where the host’s velocity samples live:\n\n\"acx_acy\" — ux at (x + dx/2, y), uy at (x, y + dy/2). Yelmo.\n\"aa\" — both at (x, y), cell-centred.\n\nThis changes only the coordinates of the source samples. The same interpolation then lands them on elsa’s own acx/acy faces, whatever the two grids’ relative resolution or offset. There is no unstagger/restagger round trip and no smoothing penalty for the common grid_factor = 1 case.\nMass-like fields (H_ice, smb, bmb) are remapped conservatively (area-weighted), so column mass balance is exact. Velocities are bilinear. v2.0’s regrid_xy did integer-factor box averaging only, required grid_factor to divide both nx and ny (it warned but continued otherwise), and box-averaged the staggered velocities as though they were cell-centred.\ngrid_factor is now a real &gt;= 1 and need not be an integer.\n\n\nWhy not coords\nBoth grids are axis-aligned and share a plane by construction — elsa’s grid is a coarsening of the host’s, over the same axes — so every horizontal map is separable: the 2D weight is the outer product of a 1D weight along x and a 1D weight along y, and it is exact. Both are precomputed once at elsa_map_init and applied as a fixed stencil, so no index search happens in the time loop.\nfesm-utils’ coords does offer this. conservative_weights even detects the same-Cartesian-system case and falls through to an analytic separable overlap — the same algorithm. But reaching it requires constructing two grid_class objects with projection metadata and a weight_map_t, none of which elsa’s (x, y) host contract carries; and interp2D::interp_bilinear re-searches its bracketing indices on every call, which elsa would pay per level, per component, per coupling step. The separable weights are ~200 lines and buy exactness plus a search-free inner loop. fesm-utils is still elsa’s only dependency, for nml and ncio.\nBecause stagger is expressed as a coordinate offset rather than a code path, fesm-utils’ staggering module is not needed either: nothing downstream branches on where the host’s velocities sat."
+  },
+  {
+    "objectID": "design.html#precision",
+    "href": "design.html#precision",
+    "title": "Design",
+    "section": "Precision",
+    "text": "Precision\nwp = dp internally. Layer thicknesses are summed over a stack reaching O(10³) layers and renormalized against host ice thickness every coupling period across O(10⁵) yr. Run time is dominated by the linear solve, not array traffic, so the wider type is nearly free.\nHost fields are accepted as real(sp) or real(dp) through generic interfaces and converted at the boundary, so a host never casts. Yelmo’s wp is currently single; this decouples elsa from that choice."
+  },
+  {
+    "objectID": "design.html#dependencies",
+    "href": "design.html#dependencies",
+    "title": "Design",
+    "section": "Dependencies",
+    "text": "Dependencies\n\nfesm-utils — ncio, nml, staggering, coords (interp1D, interp2D, conservative). Nothing is vendored that fesm-utils provides.\nLIS — vendored and built by fesm-utils, so elsa needs no system-wide install. Sources that #include \"lisf.h\" are named .F90 so gfortran and ifx both preprocess them without a compiler-specific flag."
+  },
+  {
+    "objectID": "design.html#deliberate-omissions",
+    "href": "design.html#deliberate-omissions",
+    "title": "Design",
+    "section": "Deliberate omissions",
+    "text": "Deliberate omissions\n\nThe dye tracer (tracer_iso) is not carried over. In v2.0 it was passed unallocated into the advection routine whenever use_dye_tracer was false. It will return as a tested feature with its own benchmark.\nmisc_1, a debug array written to output, is deleted.\nRestart is new. v2.0 could not restart at all: elsa_dealloc freed seven of the nine arrays elsa_init allocated, so a second elsa_init on the same object aborted on an already-allocated array."
+  },
+  {
+    "objectID": "design.html#restart",
+    "href": "design.html#restart",
+    "title": "Design",
+    "section": "Restart",
+    "text": "Restart\nelsa_restart_write stores only what cannot be reconstructed: d_iso, H_ice_prev, time, n_top, i_add, and the isochrone schedule time_add. dsum_iso is derived from d_iso; the velocities and mass balance are remapped from the host on every update.\nTwo details matter, and the round-trip test would fail without either:\n\nd_iso and H_ice_prev are written in double precision, unlike the diagnostic output of elsa_write_step, which is single. A restart that loses bits does not reproduce the run it continues.\ntime_add travels in the restart rather than being regenerated from layer_resolution. Rebuilding it from the restart time would shift every subsequent isochrone.\n\nThe grid the restart was written on must match the grid it is read onto — dimensions, axes and zeta. A mismatch is a hard error, not something to interpolate away silently.\ntest_greenland.x asserts that a run stopped, written and restarted is bit-identical to the run that never stopped. That is the only check strong enough to catch a piece of state being reconstructed instead of carried."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "elsa",
+    "section": "",
+    "text": "elsa — the Englacial Layer Simulation Architecture — advects a stack of isochronal layers through an ice-sheet domain. Its vertical axis is time: each layer is bounded by two isochrones and never exchanges mass with its neighbours, so vertical numerical diffusion is eliminated by construction. elsa is driven by a host ice-sheet model, which supplies horizontal velocity, ice thickness, and surface and basal mass balance, and which elsa never modifies.\nThe method is that of Born (2017), Born and Robinson (2021) and Rieckh et al. (2024). This implementation is a reimplementation of the Bergen ELSA v2.0, not a fork; see Design for where it departs from the published scheme, and why."
+  },
+  {
+    "objectID": "index.html#the-interface",
+    "href": "index.html#the-interface",
+    "title": "elsa",
+    "section": "The interface",
+    "text": "The interface\nA host model needs one module and three calls:\nuse elsa\n\ntype(elsa_class) :: els\n\ncall elsa_init(els,\"elsa.nml\",\"elsa\",time,time_end,xc,yc,zeta_aa,H_ice,\"acx_acy\")\n\ncall elsa_update(els,time,H_ice,ux,uy,smb,bmb)   ! every host timestep\n\ncall elsa_end(els)\nelsa_update takes an absolute time, works out its own coupling interval, decides for itself whether an update is due, and keeps its own previous-step ice thickness — so the host calls it unconditionally and manages none of elsa’s bookkeeping. Host fields may be single or double precision; elsa converts at the boundary. stagger declares where the host’s velocity samples sit — \"acx_acy\" for staggered faces (Yelmo), \"aa\" for cell-centred."
+  },
+  {
+    "objectID": "index.html#what-is-new-relative-to-v2.0",
+    "href": "index.html#what-is-new-relative-to-v2.0",
+    "title": "elsa",
+    "section": "What is new relative to v2.0",
+    "text": "What is new relative to v2.0\n\n\nCorrect upwinding\nEach cell face is upwinded on its own velocity. v2.0 chose the direction for both x-faces from the sign of one, which put a negative entry on the matrix diagonal in convergent cells and made the solve diverge. Three stability guards existed only to mask this; all are deleted. See physics.\n\n\nNo linear solver\nThe advection is explicit and sub-stepped, so there is no LIS and no system solve. fesm-utils is elsa’s only dependency. v2.0 required LIS, and required you to build and locate it.\n\n\nRobust interpolation\nAny host grid maps onto elsa’s grid through one separable, exact stencil, built once at init. grid_factor may be any real ≥ 1, not just an integer divisor. See interp.\n\n\nRestart\nA run stopped and restarted is bit-identical to the run that never stopped. v2.0 could not restart at all. See greenland."
+  },
+  {
+    "objectID": "index.html#benchmarks",
+    "href": "index.html#benchmarks",
+    "title": "elsa",
+    "section": "Benchmarks",
+    "text": "Benchmarks\nEvery claim above is checked. make check runs the Fortran benchmarks, which assert structural properties and exit nonzero on failure; make validate then runs the Julia analysis, which checks the physics against closed-form answers and draws the figures.\n\n\n\nBenchmark\nWhat it establishes\n\n\n\n\nphysics\nadvection is stable, positive and mass-conserving at any CFL\n\n\ninterp\nthe grid maps are exact\n\n\ncolumn\nisochrones follow the Nye analytic solution\n\n\ngreenland\nit runs on a real 3D ice sheet, and restarts exactly"
+  },
+  {
+    "objectID": "index.html#install",
+    "href": "index.html#install",
+    "title": "elsa",
+    "section": "Install",
+    "text": "Install\nelsa is a configme package:\nconfigme install elsa --only     # elsa + fesm-utils"
+  },
+  {
+    "objectID": "benchmarks/column.html",
+    "href": "benchmarks/column.html",
+    "title": "column",
+    "section": "",
+    "text": "test_column.x is elsa’s end-to-end quantitative check: the whole pipeline — namelist, init, mass balance, normalization, layer insertion — driven at an ice divide where the answer is known in closed form.\nAt a divide there is no horizontal flow. With constant ice thickness \\(H\\) and constant accumulation \\(a\\), an isochrone laid down at the surface sinks under uniform vertical strain, and Nye’s steady solution puts it, after elapsed time \\(\\tau\\), at a height above the bed of\n\\[\nz(\\tau) = H\\,\\exp\\!\\left(-\\frac{a\\,\\tau}{H}\\right).\n\\]\nSource: src/test_column.f90. Run it with make run-column."
+  },
+  {
+    "objectID": "benchmarks/column.html#what-it-tests",
+    "href": "benchmarks/column.html#what-it-tests",
+    "title": "column",
+    "section": "",
+    "text": "test_column.x is elsa’s end-to-end quantitative check: the whole pipeline — namelist, init, mass balance, normalization, layer insertion — driven at an ice divide where the answer is known in closed form.\nAt a divide there is no horizontal flow. With constant ice thickness \\(H\\) and constant accumulation \\(a\\), an isochrone laid down at the surface sinks under uniform vertical strain, and Nye’s steady solution puts it, after elapsed time \\(\\tau\\), at a height above the bed of\n\\[\nz(\\tau) = H\\,\\exp\\!\\left(-\\frac{a\\,\\tau}{H}\\right).\n\\]\nSource: src/test_column.f90. Run it with make run-column."
+  },
+  {
+    "objectID": "benchmarks/column.html#the-point-vertical-motion-is-emergent",
+    "href": "benchmarks/column.html#the-point-vertical-motion-is-emergent",
+    "title": "column",
+    "section": "The point: vertical motion is emergent",
+    "text": "The point: vertical motion is emergent\nelsa never computes a vertical velocity. Each coupling step it adds \\(a\\,\\Delta t\\) to the top layer and renormalizes the column onto \\(H\\), which multiplies every layer height by \\(r = H/(H + a\\,\\Delta t)\\). After \\(n = \\tau/\\Delta t\\) steps,\n\\[\nz = H\\,r^{\\,n}\n  = H\\left(1 + \\frac{a\\,\\Delta t}{H}\\right)^{-\\tau/\\Delta t}\n  \\;\\longrightarrow\\; H\\,\\exp\\!\\left(-\\frac{a\\,\\tau}{H}\\right)\n  \\quad\\text{as } \\Delta t \\to 0.\n\\]\nSo the vertical thinning is a consequence of the layer bookkeeping, not something imposed. The benchmark checks two separate things: that elsa lands on the discrete recursion \\(H\\,r^n\\) exactly (a statement about the code), and that this converges onto the analytic Nye profile at first order in the coupling period (a statement about the scheme)."
+  },
+  {
+    "objectID": "benchmarks/column.html#results",
+    "href": "benchmarks/column.html#results",
+    "title": "column",
+    "section": "Results",
+    "text": "Results\n\n\n\n\n\n\nFigure 1: Left: modelled isochrone height against the Nye analytic solution and elsa’s own discrete recursion. Right: the residual — flat-zero against the discrete solution, and a smooth first-order bump against Nye that peaks mid-column and vanishes at both ends.\n\n\n\n\nAgainst the discrete recursion: exact. All 20 isochrones land on \\(H\\,r^n\\) to a relative error of \\(4.9\\times10^{-15}\\) — machine precision on the in-memory double-precision state.\nAgainst Nye: first-order. At \\(\\Delta t = 100\\) yr the maximum departure is 5.5 m out of 3000 m of ice, and halving \\(\\Delta t\\) halves it. The convergence ratios measured at \\(\\Delta t = 200, 100, 50\\) yr are 1.997 and 1.998, against a first-order expectation of 2.\n\nThe shape of the residual in the right panel — zero at the surface, zero at the bed, a smooth bump in between — is the fingerprint of a discretization error, not a bug."
+  },
+  {
+    "objectID": "benchmarks/column.html#restart-in-passing",
+    "href": "benchmarks/column.html#restart-in-passing",
+    "title": "column",
+    "section": "Restart, in passing",
+    "text": "Restart, in passing\nThe same benchmark asserts that elsa_end followed by a second elsa_init on the same object succeeds. v2.0 freed only seven of its nine arrays, so the second init aborted on an already-allocated array — which is why v2.0 could not restart. The bit-identical restart round-trip is checked in greenland."
+  },
+  {
+    "objectID": "benchmarks/interp.html",
+    "href": "benchmarks/interp.html",
+    "title": "interp",
+    "section": "",
+    "text": "test_interp.x checks the maps in elsa_interp that carry the host model’s fields onto elsa’s grid. Every map is separable — the 2D weight is the outer product of a weight along x and a weight along y — and exact, and each is precomputed once at init and applied as a fixed stencil thereafter. So the benchmark asserts exactness properties, not tolerances.\nSource: src/test_interp.f90. Run it with make run-interp."
+  },
+  {
+    "objectID": "benchmarks/interp.html#what-it-tests",
+    "href": "benchmarks/interp.html#what-it-tests",
+    "title": "interp",
+    "section": "",
+    "text": "test_interp.x checks the maps in elsa_interp that carry the host model’s fields onto elsa’s grid. Every map is separable — the 2D weight is the outer product of a weight along x and a weight along y — and exact, and each is precomputed once at init and applied as a fixed stencil thereafter. So the benchmark asserts exactness properties, not tolerances.\nSource: src/test_interp.f90. Run it with make run-interp."
+  },
+  {
+    "objectID": "benchmarks/interp.html#the-three-maps",
+    "href": "benchmarks/interp.html#the-three-maps",
+    "title": "interp",
+    "section": "The three maps",
+    "text": "The three maps\n\n\n\n\n\n\n\n\nField(s)\nSource → target\nMethod\n\n\n\n\nH_ice, smb, bmb\nhost cells → elsa cells\narea-weighted (conservative)\n\n\nux\nhost velocity → elsa acx faces\nbilinear\n\n\nuy\nhost velocity → elsa acy faces\nbilinear\n\n\n\nVertically, the host supplies velocity on nz sigma levels; elsa needs the thickness-average over each isochronal layer, which — since the profile is piecewise linear — integrates exactly."
+  },
+  {
+    "objectID": "benchmarks/interp.html#results",
+    "href": "benchmarks/interp.html#results",
+    "title": "interp",
+    "section": "Results",
+    "text": "Results\n conservative remap\n   grid_factor 1.0 -&gt; 10 x 10   mass conserved (0),  identity to the source\n   grid_factor 2.0 -&gt;  5 x  5   mass conserved (0),  equals a 2x2 box mean\n   grid_factor 2.5 -&gt;  4 x  4   mass conserved (3.0e-16)\n\n bilinear velocity onto faces\n   stagger = acx_acy   ux, uy reproduce a linear field exactly\n   stagger = aa        ux, uy reproduce a linear field exactly\n\n layer-mean velocity\n   constant profile exact\n   linear profile -&gt; layer midpoint value\n   sum(u_k d_k) = exact integral   (err 1.7e-16)\nThree things this establishes:\n\nNon-integer coarsening conserves mass. At grid_factor = 2.5, elsa’s grid tiles the host’s without an integer ratio, and total ice mass is preserved to \\(3\\times10^{-16}\\). v2.0 required grid_factor to divide both nx and ny; it warned and continued otherwise, silently losing mass.\nStaggering is a coordinate, not a code path. The bilinear map reproduces a linear field for both \"acx_acy\" and \"aa\" because stagger only shifts where the host’s velocity samples are taken from; nothing downstream branches on it. Any host grid — staggered or centred, any resolution ratio — reaches elsa’s faces through the same code.\nThe vertical average is exact and unbiased. For a linear profile the layer-mean equals the value at the layer midpoint, and the thickness-weighted sum equals the exact integral to \\(2\\times10^{-16}\\). v2.0 sampled the layer’s upper interface instead, biasing every layer toward the faster ice above it — here by \\(+1.13\\ \\mathrm{m/yr}\\) for the test profile."
+  }
+]

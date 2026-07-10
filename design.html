@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Design – elsa</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-87aa3f3d30365e420552d067b3910e07.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-e913f0b6503cdf3d29a396f382914efc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">elsa</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./design.html" aria-current="page"> 
+<span class="menu-text">Design</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-benchmarks" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Benchmarks</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-benchmarks">    
+        <li>
+    <a class="dropdown-item" href="./benchmarks/physics.html">
+ <span class="dropdown-text">physics — advection &amp; layer kernels</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./benchmarks/interp.html">
+ <span class="dropdown-text">interp — grid mapping</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./benchmarks/column.html">
+ <span class="dropdown-text">column — Nye analytic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./benchmarks/greenland.html">
+ <span class="dropdown-text">greenland — 3D offline</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/fesmc/elsa"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Design</li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#elsa-design-notes" id="toc-elsa-design-notes" class="nav-link active" data-scroll-target="#elsa-design-notes">elsa design notes</a>
+  <ul class="collapse">
+  <li><a href="#what-elsa-is" id="toc-what-elsa-is" class="nav-link" data-scroll-target="#what-elsa-is">What elsa is</a></li>
+  <li><a href="#the-advection-scheme" id="toc-the-advection-scheme" class="nav-link" data-scroll-target="#the-advection-scheme">The advection scheme</a></li>
+  <li><a href="#the-update-sequence" id="toc-the-update-sequence" class="nav-link" data-scroll-target="#the-update-sequence">The update sequence</a></li>
+  <li><a href="#vertical-interpolation-of-the-host-velocity" id="toc-vertical-interpolation-of-the-host-velocity" class="nav-link" data-scroll-target="#vertical-interpolation-of-the-host-velocity">Vertical interpolation of the host velocity</a></li>
+  <li><a href="#grids-staggering-and-the-host-contract" id="toc-grids-staggering-and-the-host-contract" class="nav-link" data-scroll-target="#grids-staggering-and-the-host-contract">Grids, staggering, and the host contract</a></li>
+  <li><a href="#precision" id="toc-precision" class="nav-link" data-scroll-target="#precision">Precision</a></li>
+  <li><a href="#dependencies" id="toc-dependencies" class="nav-link" data-scroll-target="#dependencies">Dependencies</a></li>
+  <li><a href="#deliberate-omissions" id="toc-deliberate-omissions" class="nav-link" data-scroll-target="#deliberate-omissions">Deliberate omissions</a></li>
+  <li><a href="#restart" id="toc-restart" class="nav-link" data-scroll-target="#restart">Restart</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul class="collapse"><li><a href="https://github.com/fesmc/elsa/blob/main/design.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Design</h1>
+<p class="subtitle lead">Where elsa departs from the published v2.0 scheme, and why</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The page below is rendered from <code>docs/DESIGN.md</code>, the design record kept in the source tree. It is the single source of truth for the modelling and numerical decisions; every departure from Rieckh et al.&nbsp;(2024) is stated here with its consequence, because each one changes results.</p>
+<section id="elsa-design-notes" class="level1">
+<h1>elsa design notes</h1>
+<p>This is a reimplementation of ELSA, not a fork. The method is that of Born (2017), Born and Robinson (2021) and Rieckh et al.&nbsp;(2024, GMD 17, 6987–7000, hereafter <strong>R24</strong>); the code is new.</p>
+<p>This document records where the implementation departs from the published v2.0 scheme, and why. Every departure changes results relative to R24, so each one is stated explicitly rather than absorbed silently.</p>
+<section id="what-elsa-is" class="level2">
+<h2 class="anchored" data-anchor-id="what-elsa-is">What elsa is</h2>
+<p>A stack of isochronal layers on a 2D grid. The vertical axis is <em>time</em>: each layer is bounded by two isochrones and never exchanges mass with its neighbours. Layers thin as ice flows toward the margin, and vertical motion emerges from changes in the individual layer thicknesses rather than from a vertical velocity. This eliminates vertical numerical diffusion by construction, which is the whole point of the scheme.</p>
+<p>elsa is not an ice-sheet model. It is driven by a host model, which supplies horizontal velocity, ice thickness, and surface and basal mass balance, and which elsa never modifies.</p>
+</section>
+<section id="the-advection-scheme" class="level2">
+<h2 class="anchored" data-anchor-id="the-advection-scheme">The advection scheme</h2>
+<section id="what-r24-does" class="level3">
+<h3 class="anchored" data-anchor-id="what-r24-does">What R24 does</h3>
+<p>Layer thickness <code>d</code> obeys the flux-form continuity equation (R24 Eq. B1)</p>
+<pre><code>∂d/∂t = -∂(ud)/∂x - ∂(vd)/∂y</code></pre>
+<p>discretized implicitly in time, upstream in space, with velocities at the cell faces. For <code>u &gt; 0</code>, <code>v &gt; 0</code> this gives (R24 Eq. B5)</p>
+<pre><code>d^t(i,j) = d^{t+1}(i,j) · [1 + (Δt/Δx)·u(i+½,j) + (Δt/Δy)·v(i,j+½)]
+         - d^{t+1}(i-1,j) · (Δt/Δx)·u(i-½,j)
+         - d^{t+1}(i,j-1) · (Δt/Δy)·v(i,j-½)</code></pre>
+<p>with three companion cases (Eqs. B6–B8) for the other sign combinations, and the system <code>A·d^{t+1} = d^t</code> solved with LIS.</p>
+</section>
+<section id="the-defect" class="level3">
+<h3 class="anchored" data-anchor-id="the-defect">The defect</h3>
+<p>Equations B5–B8 select the upwind direction for <strong>both</strong> x-faces from a single sign test on <code>u(i+½,j)</code> (and both y-faces from <code>v(i,j+½)</code>). But the flux through face <code>i-½</code> is upwinded according to <code>u(i-½,j)</code>, which may have the opposite sign.</p>
+<p>In a convergent cell, <code>u(i-½,j) &gt; 0 &gt; u(i+½,j)</code>, Eq. B6 is selected and the main diagonal becomes <code>1 - (Δt/Δx)·u(i-½,j)</code>, which is <strong>negative</strong> for <code>u(i-½,j) &gt; Δx/Δt</code>. The matrix loses diagonal dominance and the solve produces unbounded layer thicknesses.</p>
+<p>This is the instability R24 documents in Sect. 3.5 — <em>“layer thickness can become unrealistically large during one advection step… often at the ice-sheet boundaries where velocities are large”</em> — and works around with a maximum allowed thickness change per step, <code>d_max = 100 + 10·update_factor + layer_resolution/10</code> (Eq. B9). The v2.0 code carries two further guards: a fallback to the previous value whenever the solution is non-finite, and a skip of all advection where <code>|u| &lt; 0.1 m/yr</code>, commented <em>“using 0 is unstable”</em>.</p>
+<p>Zero velocity is not unstable. Sign-changing velocity is.</p>
+</section>
+<section id="the-fix-upwind-each-face-on-its-own-velocity" class="level3">
+<h3 class="anchored" data-anchor-id="the-fix-upwind-each-face-on-its-own-velocity">The fix: upwind each face on its own velocity</h3>
+<pre><code>F(i+½) = max(u(i+½),0)·d(i) + min(u(i+½),0)·d(i+1)
+F(i-½) = max(u(i-½),0)·d(i-1) + min(u(i-½),0)·d(i)
+
+∂d(i)/∂t = -[F(i+½) - F(i-½)]/Δx   (and likewise in y)</code></pre>
+<p>Zero velocity needs no special case; sign reversal across a cell needs no special case. <code>d_max</code> (B9), the non-finite fallback, and the <code>0.1 m/yr</code> threshold are all deleted. None is ported.</p>
+<p>Written implicitly this yields a matrix with diagonal <code>≥ 1</code> and off-diagonals <code>≤ 0</code>. It is <strong>column</strong> diagonally dominant, not row diagonally dominant: each off-diagonal entry in column <code>j</code> is the coefficient with which cell <code>j</code> feeds a neighbour, so the off-diagonal column sum is exactly the total outflow from <code>j</code>, and</p>
+<pre><code>A(j,j) - Σ_{i≠j} |A(i,j)|  =  1     exactly, for every j and every u</code></pre>
+<p>A strongly convergent cell has inflow far exceeding outflow, so its <em>row</em> is not dominant at all — the margin goes negative. It is easy to get this backwards. Three consequences follow, all verified numerically at CFL ≫ 1:</p>
+<ul>
+<li><code>A</code> is a Z-matrix with strictly dominant columns and positive diagonal, so it is a nonsingular M-matrix and <code>A⁻¹ ≥ 0</code>: layer thicknesses stay non-negative for any velocity field and any timestep.</li>
+<li>The interior column sums are exactly <code>1</code>, so <code>Σ d^{t+1} = Σ d^t</code> up to boundary fluxes: mass is conserved to roundoff.</li>
+<li><code>‖A⁻¹‖₁ = 1</code>, so <code>‖d^{t+1}‖₁ ≤ ‖d^t‖₁</code>: unconditionally stable in the mass norm, which is the norm that matters for a thickness field.</li>
+</ul>
+</section>
+<section id="the-time-discretization-explicit-sub-stepped" class="level3">
+<h3 class="anchored" data-anchor-id="the-time-discretization-explicit-sub-stepped">The time discretization: explicit, sub-stepped</h3>
+<p>elsa evaluates the same fluxes <strong>explicitly</strong>, sub-stepping the coupling period so that the outflow rate obeys</p>
+<pre><code>Δt_sub · [ (max(u(i+½),0) - min(u(i-½),0))/Δx
+         + (max(v(j+½),0) - min(v(j-½),0))/Δy ]  ≤  CFL   ≤ 1</code></pre>
+<p>for every cell. This is the exact positivity condition for the explicit update: the coefficient multiplying <code>d(i,j)</code> is <code>1 - Δt·r(i,j)</code>, and everything else entering the cell is non-negative. The substep count is computed per layer, per coupling step, from the actual velocity field.</p>
+<p>Explicit upwinding under this condition inherits the same three guarantees listed above — non-negativity, exact mass conservation, L1 stability — and adds none of the extra damping the implicit solve applies on top of the upwind truncation error. For a model whose purpose is not smearing layers, that matters.</p>
+<p>There is no linear solve, so <strong>LIS is not a dependency of elsa.</strong> R24 notes <em>“Its only dependency is the Library of Iterative Solvers”</em>; this implementation has none beyond fesm-utils.</p>
+<p>The reasoning, at the R24 CTRL configuration (16 km, <code>CP = 10 yr</code>, <code>u_max ≈ 12 km/yr</code>):</p>
+<ul>
+<li>Implicit BiCG to R24’s <code>-tol 1.0e-12</code> runs ~30–50 iterations, each a 5-point matvec plus vector work: order 800 flops/cell. Plus <code>5·nx·ny</code> <code>lis_matrix_set_value</code> calls per layer per coupling step.</li>
+<li>Explicit needs <code>⌈u_max·Δt/Δx⌉ = 8</code> substeps at ~15 flops each: order 120 flops/cell. No assembly, no solver objects, no library calls.</li>
+</ul>
+<p>The asymptotics are the same, not just the constant. Explicit cost grows as <code>nl·N·(u_max Δt/Δx) ∝ nl/Δx³</code>. But Krylov iteration count on an advection-dominated M-matrix grows like the characteristic path length, <code>O(1/Δx)</code>, absent a strong preconditioner — so the implicit cost is <em>also</em> <code>∝ nl/Δx³</code>, with a worse constant.</p>
+<p>Assembling the <code>nl</code> layers into one block-diagonal system would have been worse still: the blocks are decoupled, so a Krylov method on the whole thing iterates until the <em>worst</em> layer converges while the rest pay full matvec cost, and its Krylov vectors are <code>nl·N</code> long rather than <code>N</code>.</p>
+<p><strong>Consequence.</strong> A large coupling period no longer buys speed: cost is now roughly proportional to simulated time regardless of <code>CP</code>, because the substep count absorbs it. This is the intended trade. R24’s own Figs. 7–8 show <code>CP = 200</code> already carries 40–80 m RMSE, so the cheap-large-<code>CP</code> regime was not one worth preserving. <code>grid_factor</code> and <code>layer_resolution</code> remain the effective levers for ensemble cost, and Fig. 9 shows they always were the larger ones.</p>
+</section>
+<section id="boundaries" class="level3">
+<h3 class="anchored" data-anchor-id="boundaries">Boundaries</h3>
+<p>Zero normal flux at the domain edge, so global mass is conserved exactly. v2.0 instead froze layer thickness at boundary cells. Ice reaching the elsa domain boundary is a host-domain problem, not something elsa should paper over.</p>
+</section>
+</section>
+<section id="the-update-sequence" class="level2">
+<h2 class="anchored" data-anchor-id="the-update-sequence">The update sequence</h2>
+<p><code>elsa_update</code> receives an absolute time and does nothing unless a coupling period has elapsed. When it fires, in order:</p>
+<ol type="1">
+<li>Map <code>H_ice</code>, <code>smb</code>, <code>bmb</code> and the velocities onto elsa’s grid.</li>
+<li>Normalize the layer stack onto <code>H_ice_prev</code> — the host thickness the incoming velocities were computed on.</li>
+<li>Add <code>smb·dt</code> to the top layer, <code>bmb·dt</code> to the bottom, exhausting layers in turn where the balance is negative.</li>
+<li>Accumulate <code>dsum</code>, then take the layer-mean velocity at every face.</li>
+<li>Advect each layer independently.</li>
+<li>Reseed any column elsa emptied that the host still has ice in (below).</li>
+<li>Normalize onto <code>H_ice</code>. Horizontal layer advection is not the host’s mass conservation, so this is the drift correction. Relative layer thicknesses are unchanged.</li>
+<li>Lay down any isochrone whose time has been reached.</li>
+</ol>
+<p>Steps 2 and 6 are where elsa’s vertical motion comes from. It never computes a vertical velocity: adding accumulation on top and renormalizing the column multiplies every layer height by <code>H/(H + a·dt)</code>, which is Nye’s uniform vertical strain in the limit <code>dt -&gt; 0</code>. <code>test_column.x</code> asserts both the discrete result (exact to 5e-15) and its first-order convergence onto <code>z = H·exp(-a·t/H)</code>.</p>
+<p>elsa owns <code>H_ice_prev</code> and the isochrone schedule. v2.0 made the driver hand-manage the previous ice thickness across two lines 180 apart in <code>yelmox_elsa.f90</code> and wrap the call in its own <code>its_time</code> check.</p>
+<p>Where <code>layer_resolution &lt; dt_coupling</code>, more than one isochrone falls inside a coupling period. v2.0 rejected that configuration at init; elsa lays down each of them (the extra layers simply receive no accumulation) and warns at init.</p>
+<section id="emptied-columns" class="level3">
+<h3 class="anchored" data-anchor-id="emptied-columns">Emptied columns</h3>
+<p>Surface ablation removes ice from the top layer downward and stops when the column runs out — it cannot remove ice that is not there. Where <code>-smb·dt</code> exceeds the whole column, that leaves it at exactly zero, and the normalization has nothing to rescale: the column is dead for the rest of the run. v2.0 has the same hole — <code>normalise_d</code> zeroes a column whose sum is not positive, silently and permanently.</p>
+<p>On the 16 km Greenland benchmark, 85 of 7204 ice cells satisfy <code>-smb·dt &gt; H</code> at <code>dt_coupling = 50 yr</code>. All are thin margin cells (3–244 m against a median ice thickness of 1718 m). Advection refills most of them; about nine per step do not recover.</p>
+<p>elsa gives those columns the host’s ice back, <strong>in layer 1, at the bed</strong>. Ablation eats a column from the top, so the last ice standing before exhaustion is the deepest; putting the survivor there is the consistent continuation of the process that destroyed the column, and it is where basal freeze-on already goes. Reseeding at the top would instead claim the ice is young, contradicting the process that removed it.</p>
+<p>This is defined behaviour for an under-determined state — elsa cannot date ice it believes it removed — not a correction to a bug. It is <strong>counted</strong>, not silent: <code>now%n_reseed</code> (last update) and <code>now%n_reseed_total</code>, with a note on first occurrence. A large or growing per-step count means <code>dt_coupling</code> is too long, or the forcing is inconsistent.</p>
+</section>
+<section id="the-face-column" class="level3">
+<h3 class="anchored" data-anchor-id="the-face-column">The face column</h3>
+<p>The layer-mean velocity needs the column geometry <em>at each face</em>. elsa takes it as the average of the two cell columns the face separates, so <code>dsum_face(n_top) = H_face</code> holds by construction — including at the margin, where one neighbour is ice-free and the face thickness is half the ice-covered cell’s. Mapping the host’s <code>H</code> straight onto a face grid with its own conservative weights would not stay consistent with elsa’s own layer stack.</p>
+</section>
+</section>
+<section id="vertical-interpolation-of-the-host-velocity" class="level2">
+<h2 class="anchored" data-anchor-id="vertical-interpolation-of-the-host-velocity">Vertical interpolation of the host velocity</h2>
+<p>R24 states only that host velocities are <em>“linearly interpolated in the vertical… onto the isochronal grid”</em>. The v2.0 code evaluates them at <code>dsum(i,j,iz)</code>, the <strong>upper interface</strong> of layer <code>iz</code>.</p>
+<p>In the flux form <code>∂d/∂t = -∇·(ū d)</code>, the velocity that transports layer <code>iz</code> is its thickness-average</p>
+<pre><code>ū(iz) = (1/d(iz)) · ∫ over [dsum(iz-1), dsum(iz)] of u(z) dz</code></pre>
+<p>Sampling at the upper interface instead biases every layer toward the faster ice above it, systematically over-advecting the stack. Since <code>u(z)</code> is piecewise-linear on the host’s vertical grid, the integral is exact and cheap.</p>
+<p><strong>Consequence.</strong> elsa uses the layer-mean velocity. Deep layers advect more slowly than in v2.0; the effect grows with layer thickness, so it is largest for coarse <code>layer_resolution</code> and near the bed.</p>
+</section>
+<section id="grids-staggering-and-the-host-contract" class="level2">
+<h2 class="anchored" data-anchor-id="grids-staggering-and-the-host-contract">Grids, staggering, and the host contract</h2>
+<section id="vertical" class="level3">
+<h3 class="anchored" data-anchor-id="vertical">Vertical</h3>
+<p>elsa requires host velocities on <code>nz</code> levels co-located with a strictly ascending sigma axis <code>zeta</code>, with <code>zeta(1) = 0</code> at the bed and <code>zeta(nz) = 1</code> at the surface, and <code>size(zeta) == size(ux,3)</code>. This is checked at <code>elsa_init</code>. It is exactly Yelmo’s <code>zeta_aa</code> convention, and exactly the contract <code>tracer</code> states, so the two packages can be compared directly on the same host fields.</p>
+<p>This resolves an inconsistency in v2.0, where the offline path read <code>nz+1</code> values from <code>zeta_aa.txt</code> into an <code>nz</code>-element array while the coupled path received Yelmo’s <code>nz</code>.</p>
+</section>
+<section id="horizontal" class="level3">
+<h3 class="anchored" data-anchor-id="horizontal">Horizontal</h3>
+<p>The scheme wants velocities <strong>at cell faces</strong> (R24 App. B). Rather than treat that as two code paths, <code>stagger</code> declares where the host’s velocity samples live:</p>
+<ul>
+<li><code>"acx_acy"</code> — <code>ux</code> at <code>(x + dx/2, y)</code>, <code>uy</code> at <code>(x, y + dy/2)</code>. Yelmo.</li>
+<li><code>"aa"</code> — both at <code>(x, y)</code>, cell-centred.</li>
+</ul>
+<p>This changes only the <em>coordinates</em> of the source samples. The same interpolation then lands them on elsa’s own acx/acy faces, whatever the two grids’ relative resolution or offset. There is no unstagger/restagger round trip and no smoothing penalty for the common <code>grid_factor = 1</code> case.</p>
+<p>Mass-like fields (<code>H_ice</code>, <code>smb</code>, <code>bmb</code>) are remapped conservatively (area-weighted), so column mass balance is exact. Velocities are bilinear. v2.0’s <code>regrid_xy</code> did integer-factor box averaging only, required <code>grid_factor</code> to divide both <code>nx</code> and <code>ny</code> (it warned but continued otherwise), and box-averaged the staggered velocities as though they were cell-centred.</p>
+<p><code>grid_factor</code> is now a real <code>&gt;= 1</code> and need not be an integer.</p>
+</section>
+<section id="why-not-coords" class="level3">
+<h3 class="anchored" data-anchor-id="why-not-coords">Why not coords</h3>
+<p>Both grids are axis-aligned and share a plane by construction — elsa’s grid is a coarsening of the host’s, over the same axes — so every horizontal map is <em>separable</em>: the 2D weight is the outer product of a 1D weight along x and a 1D weight along y, and it is exact. Both are precomputed once at <code>elsa_map_init</code> and applied as a fixed stencil, so no index search happens in the time loop.</p>
+<p>fesm-utils’ <code>coords</code> does offer this. <code>conservative_weights</code> even detects the same-Cartesian-system case and falls through to an analytic separable overlap — the same algorithm. But reaching it requires constructing two <code>grid_class</code> objects with projection metadata and a <code>weight_map_t</code>, none of which elsa’s <code>(x, y)</code> host contract carries; and <code>interp2D::interp_bilinear</code> re-searches its bracketing indices on every call, which elsa would pay per level, per component, per coupling step. The separable weights are ~200 lines and buy exactness plus a search-free inner loop. fesm-utils is still elsa’s only dependency, for <code>nml</code> and <code>ncio</code>.</p>
+<p>Because <code>stagger</code> is expressed as a coordinate offset rather than a code path, fesm-utils’ <code>staggering</code> module is not needed either: nothing downstream branches on where the host’s velocities sat.</p>
+</section>
+</section>
+<section id="precision" class="level2">
+<h2 class="anchored" data-anchor-id="precision">Precision</h2>
+<p><code>wp = dp</code> internally. Layer thicknesses are summed over a stack reaching O(10³) layers and renormalized against host ice thickness every coupling period across O(10⁵) yr. Run time is dominated by the linear solve, not array traffic, so the wider type is nearly free.</p>
+<p>Host fields are accepted as <code>real(sp)</code> or <code>real(dp)</code> through generic interfaces and converted at the boundary, so a host never casts. Yelmo’s <code>wp</code> is currently single; this decouples elsa from that choice.</p>
+</section>
+<section id="dependencies" class="level2">
+<h2 class="anchored" data-anchor-id="dependencies">Dependencies</h2>
+<ul>
+<li><strong>fesm-utils</strong> — <code>ncio</code>, <code>nml</code>, <code>staggering</code>, <code>coords</code> (<code>interp1D</code>, <code>interp2D</code>, <code>conservative</code>). Nothing is vendored that fesm-utils provides.</li>
+<li><strong>LIS</strong> — vendored and built by fesm-utils, so elsa needs no system-wide install. Sources that <code>#include "lisf.h"</code> are named <code>.F90</code> so gfortran and ifx both preprocess them without a compiler-specific flag.</li>
+</ul>
+</section>
+<section id="deliberate-omissions" class="level2">
+<h2 class="anchored" data-anchor-id="deliberate-omissions">Deliberate omissions</h2>
+<ul>
+<li><strong>The dye tracer</strong> (<code>tracer_iso</code>) is not carried over. In v2.0 it was passed unallocated into the advection routine whenever <code>use_dye_tracer</code> was false. It will return as a tested feature with its own benchmark.</li>
+<li><strong><code>misc_1</code></strong>, a debug array written to output, is deleted.</li>
+<li><strong>Restart</strong> is new. v2.0 could not restart at all: <code>elsa_dealloc</code> freed seven of the nine arrays <code>elsa_init</code> allocated, so a second <code>elsa_init</code> on the same object aborted on an already-allocated array.</li>
+</ul>
+</section>
+<section id="restart" class="level2">
+<h2 class="anchored" data-anchor-id="restart">Restart</h2>
+<p><code>elsa_restart_write</code> stores only what cannot be reconstructed: <code>d_iso</code>, <code>H_ice_prev</code>, <code>time</code>, <code>n_top</code>, <code>i_add</code>, and the isochrone schedule <code>time_add</code>. <code>dsum_iso</code> is derived from <code>d_iso</code>; the velocities and mass balance are remapped from the host on every update.</p>
+<p>Two details matter, and the round-trip test would fail without either:</p>
+<ul>
+<li><code>d_iso</code> and <code>H_ice_prev</code> are written in <strong>double</strong> precision, unlike the diagnostic output of <code>elsa_write_step</code>, which is single. A restart that loses bits does not reproduce the run it continues.</li>
+<li><code>time_add</code> travels in the restart rather than being regenerated from <code>layer_resolution</code>. Rebuilding it from the restart time would shift every subsequent isochrone.</li>
+</ul>
+<p>The grid the restart was written on must match the grid it is read onto — dimensions, axes and <code>zeta</code>. A mismatch is a hard error, not something to interpolate away silently.</p>
+<p><code>test_greenland.x</code> asserts that a run stopped, written and restarted is <strong>bit-identical</strong> to the run that never stopped. That is the only check strong enough to catch a piece of state being reconstructed instead of carried.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/fesmc\.github\.io\/elsa\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/design.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
