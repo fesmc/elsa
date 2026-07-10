@@ -1,0 +1,7 @@
+# configme manifest. Names this checkout's primary package and the packages it
+# depends on. Committed, so the checkout is recognised whatever its directory is
+# called (this one is cloned as `fesmc-elsa`, not `elsa`).
+package = "elsa"
+deps = [
+    "fesm-utils",
+]
