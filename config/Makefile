@@ -44,10 +44,14 @@ endif
 $(objdir)/elsa_precision.o: $(srcdir)/elsa_precision.f90
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
-$(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o
+$(objdir)/elsa_physics.o: $(srcdir)/elsa_physics.f90 $(objdir)/elsa_precision.o
+	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
+
+$(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_physics.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
 obj_elsa =	$(objdir)/elsa_precision.o \
+			$(objdir)/elsa_physics.o \
 			$(objdir)/elsa.o
 
 ###############################################
@@ -64,13 +68,31 @@ elsa-static: $(obj_elsa)
 	@echo "    $(objdir)/libelsa.a is ready."
 	@echo " "
 
-.PHONY: all usage clean check
-all: elsa-static
+# Benchmark: the elsa_physics kernels. Advection of a blob under uniform,
+# rotational, convergent and divergent flow, plus the layer bookkeeping.
+physics: elsa-static
+	$(FC) $(DFLAGS) $(FFLAGS) -o $(bindir)/test_physics.x $(srcdir)/test_physics.f90 \
+		$(LIB_ELSA) $(LFLAGS)
+	@echo " "
+	@echo "    $(bindir)/test_physics.x is ready."
+	@echo " "
+
+.PHONY: all usage clean check run-physics
+all: physics
+
+###############################################
+##
+## Running the benchmarks
+##
+###############################################
+
+run-physics: physics
+	./$(bindir)/test_physics.x
 
 # Run every benchmark. Any of them failing exits nonzero and fails here.
-check: all
+check: run-physics
 	@echo " "
-	@echo "    No benchmarks yet."
+	@echo "    All benchmarks passed."
 	@echo " "
 
 usage:
@@ -78,7 +100,10 @@ usage:
 	@echo "    * USAGE * "
 	@echo ""
 	@echo " make elsa-static  : compiles the static library libelsa.a"
+	@echo " make physics      : compiles test_physics.x, the kernel benchmarks"
 	@echo " make all          : compiles everything"
+	@echo ""
+	@echo " make run-physics  : runs the kernel benchmarks"
 	@echo " make check        : runs all benchmarks; nonzero exit on any failure"
 	@echo ""
 	@echo " make clean        : cleans object files and programs"

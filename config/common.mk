@@ -7,29 +7,19 @@
 # fesm-utils provides the ncio, nml, staggering and coords modules that elsa
 # uses. elsa carries no netCDF calls of its own, so INC_NC is not needed at
 # compile time; only LIB_NC at link time, via ncio inside libfesmutils.
+#
+# This is elsa's only dependency. The advection is an explicit sub-stepped
+# upwind scheme, so there is no linear solver and no LIS (see docs/DESIGN.md).
 FESMUTILSROOT = fesm-utils
 INC_FESMUTILS = -I${FESMUTILSROOT}/include-serial
 LIB_FESMUTILS = -L${FESMUTILSROOT}/include-serial -lfesmutils
 
-# LIS (Library of Iterative Solvers) solves elsa's implicit advection system.
-# It is vendored and built by fesm-utils, so elsa needs no system-wide install.
-# The lisf.h header is pulled in by an #include, so INC_LIS is a compile flag;
-# sources that need it are named .F90 so both gfortran and ifx preprocess them
-# without a compiler-specific -cpp / -fpp flag.
-LISROOT = ${FESMUTILSROOT}/lis/lis-serial
-INC_LIS = -I${LISROOT}/include
-LIB_LIS = -L${LISROOT}/lib -llis
-
-# elsa needs the fesm-utils and LIS includes in its compile flags.
-FFLAGS += $(INC_FESMUTILS) $(INC_LIS)
+# elsa needs the fesm-utils includes in its compile flags.
+FFLAGS += $(INC_FESMUTILS)
 
 ifeq ($(openmp), 1)
     INC_FESMUTILS = -I${FESMUTILSROOT}/include-omp
     LIB_FESMUTILS = -L${FESMUTILSROOT}/include-omp -lfesmutils
-
-    LISROOT = ${FESMUTILSROOT}/lis/lis-omp
-    INC_LIS = -I${LISROOT}/include
-    LIB_LIS = -L${LISROOT}/lib -llis
 
     FFLAGS += $(FFLAGS_OPENMP)
 endif
@@ -45,4 +35,4 @@ LIB_ELSA = -L${ELSAROOT}/libelsa/include -lelsa
 # `LFLAGS_EXTRA =` (macOS ld rejects -zmuldefs, so the macbook fragment does).
 LFLAGS_EXTRA ?= -Wl,-zmuldefs
 
-LFLAGS = $(LIB_NC) $(LIB_FESMUTILS) $(LIB_LIS) $(LFLAGS_EXTRA)
+LFLAGS = $(LIB_NC) $(LIB_FESMUTILS) $(LFLAGS_EXTRA)

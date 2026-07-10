@@ -61,23 +61,19 @@ of all advection where `|u| < 0.1 m/yr`, commented *"using 0 is unstable"*.
 
 Zero velocity is not unstable. Sign-changing velocity is.
 
-### What elsa does instead
-
-Upwind each face on its own velocity:
+### The fix: upwind each face on its own velocity
 
     F(i+½) = max(u(i+½),0)·d(i) + min(u(i+½),0)·d(i+1)
     F(i-½) = max(u(i-½),0)·d(i-1) + min(u(i-½),0)·d(i)
 
-so that
+    ∂d(i)/∂t = -[F(i+½) - F(i-½)]/Δx   (and likewise in y)
 
-    d^{t+1}(i) · [1 + (Δt/Δx)·(max(u(i+½),0) - min(u(i-½),0))]
-      + d^{t+1}(i+1) · (Δt/Δx)·min(u(i+½),0)
-      - d^{t+1}(i-1) · (Δt/Δx)·max(u(i-½),0)   =   d^t(i)
+Zero velocity needs no special case; sign reversal across a cell needs no
+special case. `d_max` (B9), the non-finite fallback, and the `0.1 m/yr`
+threshold are all deleted. None is ported.
 
-The diagonal is `≥ 1` and the off-diagonals are `≤ 0` for any velocity field.
-`u = 0` needs no special case.
-
-`A` is **column** diagonally dominant, not row diagonally dominant. Each
+Written implicitly this yields a matrix with diagonal `≥ 1` and off-diagonals
+`≤ 0`. It is **column** diagonally dominant, not row diagonally dominant: each
 off-diagonal entry in column `j` is the coefficient with which cell `j` feeds a
 neighbour, so the off-diagonal column sum is exactly the total outflow from `j`,
 and
@@ -85,26 +81,71 @@ and
     A(j,j) - Σ_{i≠j} |A(i,j)|  =  1     exactly, for every j and every u
 
 A strongly convergent cell has inflow far exceeding outflow, so its *row* is not
-dominant at all — the margin goes negative. This distinction matters when
-choosing a preconditioner, and it is easy to get backwards.
-
+dominant at all — the margin goes negative. It is easy to get this backwards.
 Three consequences follow, all verified numerically at CFL ≫ 1:
 
   - `A` is a Z-matrix with strictly dominant columns and positive diagonal, so
-    it is a nonsingular M-matrix and `A⁻¹ ≥ 0`. **Layer thicknesses stay
-    non-negative** for any velocity field and any timestep.
-  - The interior column sums of `A` are exactly `1`, hence
-    `Σ d^{t+1} = Σ d^t` up to boundary fluxes. **Mass is conserved to roundoff.**
-  - `‖A⁻¹‖₁ = 1`, so `‖d^{t+1}‖₁ ≤ ‖d^t‖₁`. **Unconditionally stable in the
-    mass norm**, which is the norm that matters for a thickness field.
+    it is a nonsingular M-matrix and `A⁻¹ ≥ 0`: layer thicknesses stay
+    non-negative for any velocity field and any timestep.
+  - The interior column sums are exactly `1`, so `Σ d^{t+1} = Σ d^t` up to
+    boundary fluxes: mass is conserved to roundoff.
+  - `‖A⁻¹‖₁ = 1`, so `‖d^{t+1}‖₁ ≤ ‖d^t‖₁`: unconditionally stable in the mass
+    norm, which is the norm that matters for a thickness field.
 
-**Consequence.** `d_max` (B9), the non-finite fallback, and the `0.1 m/yr`
-velocity threshold are all deleted. None is ported. Being an M-matrix also
-conditions the system far better, so the BiCG/Jacobi solve converges in fewer
-iterations than in v2.0.
+### The time discretization: explicit, sub-stepped
 
-The solve stays implicit and stays on LIS: there is no CFL constraint, which
-matters because the coupling period reaches 200 yr.
+elsa evaluates the same fluxes **explicitly**, sub-stepping the coupling period
+so that the outflow rate obeys
+
+    Δt_sub · [ (max(u(i+½),0) - min(u(i-½),0))/Δx
+             + (max(v(j+½),0) - min(v(j-½),0))/Δy ]  ≤  CFL   ≤ 1
+
+for every cell. This is the exact positivity condition for the explicit update:
+the coefficient multiplying `d(i,j)` is `1 - Δt·r(i,j)`, and everything else
+entering the cell is non-negative. The substep count is computed per layer, per
+coupling step, from the actual velocity field.
+
+Explicit upwinding under this condition inherits the same three guarantees
+listed above — non-negativity, exact mass conservation, L1 stability — and adds
+none of the extra damping the implicit solve applies on top of the upwind
+truncation error. For a model whose purpose is not smearing layers, that matters.
+
+There is no linear solve, so **LIS is not a dependency of elsa.** R24 notes
+*"Its only dependency is the Library of Iterative Solvers"*; this
+implementation has none beyond fesm-utils.
+
+The reasoning, at the R24 CTRL configuration (16 km, `CP = 10 yr`,
+`u_max ≈ 12 km/yr`):
+
+  - Implicit BiCG to R24's `-tol 1.0e-12` runs ~30–50 iterations, each a
+    5-point matvec plus vector work: order 800 flops/cell. Plus `5·nx·ny`
+    `lis_matrix_set_value` calls per layer per coupling step.
+  - Explicit needs `⌈u_max·Δt/Δx⌉ = 8` substeps at ~15 flops each: order
+    120 flops/cell. No assembly, no solver objects, no library calls.
+
+The asymptotics are the same, not just the constant. Explicit cost grows as
+`nl·N·(u_max Δt/Δx) ∝ nl/Δx³`. But Krylov iteration count on an
+advection-dominated M-matrix grows like the characteristic path length,
+`O(1/Δx)`, absent a strong preconditioner — so the implicit cost is *also*
+`∝ nl/Δx³`, with a worse constant.
+
+Assembling the `nl` layers into one block-diagonal system would have been worse
+still: the blocks are decoupled, so a Krylov method on the whole thing iterates
+until the *worst* layer converges while the rest pay full matvec cost, and its
+Krylov vectors are `nl·N` long rather than `N`.
+
+**Consequence.** A large coupling period no longer buys speed: cost is now
+roughly proportional to simulated time regardless of `CP`, because the substep
+count absorbs it. This is the intended trade. R24's own Figs. 7–8 show `CP = 200`
+already carries 40–80 m RMSE, so the cheap-large-`CP` regime was not one worth
+preserving. `grid_factor` and `layer_resolution` remain the effective levers for
+ensemble cost, and Fig. 9 shows they always were the larger ones.
+
+### Boundaries
+
+Zero normal flux at the domain edge, so global mass is conserved exactly. v2.0
+instead froze layer thickness at boundary cells. Ice reaching the elsa domain
+boundary is a host-domain problem, not something elsa should paper over.
 
 ## Vertical interpolation of the host velocity
 

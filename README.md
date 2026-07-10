@@ -21,8 +21,9 @@ not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
 > **Status: under construction.** The build, the package wiring and the
-> precision layer are in place; the physics, interpolation, I/O and benchmarks
-> are being written. `make elsa-static` works. Nothing else does yet.
+> advection and layer kernels are in place, with benchmarks: `make check`
+> passes. The interpolation layer, the public API, I/O and restart are still
+> being written.
 
 ## Install
 
