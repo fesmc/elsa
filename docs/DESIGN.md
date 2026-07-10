@@ -196,10 +196,34 @@ grids' relative resolution or offset. There is no unstagger/restagger round
 trip and no smoothing penalty for the common `grid_factor = 1` case.
 
 Mass-like fields (`H_ice`, `smb`, `bmb`) are remapped conservatively
-(area-weighted), so column mass balance is exact. v2.0's `regrid_xy` did
-integer-factor box averaging only, required `grid_factor` to divide both `nx`
-and `ny` (it warned but continued otherwise), and box-averaged the staggered
-velocities as though they were cell-centred.
+(area-weighted), so column mass balance is exact. Velocities are bilinear.
+v2.0's `regrid_xy` did integer-factor box averaging only, required
+`grid_factor` to divide both `nx` and `ny` (it warned but continued otherwise),
+and box-averaged the staggered velocities as though they were cell-centred.
+
+`grid_factor` is now a real `>= 1` and need not be an integer.
+
+### Why not coords
+
+Both grids are axis-aligned and share a plane by construction — elsa's grid is a
+coarsening of the host's, over the same axes — so every horizontal map is
+*separable*: the 2D weight is the outer product of a 1D weight along x and a 1D
+weight along y, and it is exact. Both are precomputed once at `elsa_map_init`
+and applied as a fixed stencil, so no index search happens in the time loop.
+
+fesm-utils' `coords` does offer this. `conservative_weights` even detects the
+same-Cartesian-system case and falls through to an analytic separable overlap —
+the same algorithm. But reaching it requires constructing two `grid_class`
+objects with projection metadata and a `weight_map_t`, none of which elsa's
+`(x, y)` host contract carries; and `interp2D::interp_bilinear` re-searches its
+bracketing indices on every call, which elsa would pay per level, per component,
+per coupling step. The separable weights are ~200 lines and buy exactness plus a
+search-free inner loop. fesm-utils is still elsa's only dependency, for `nml`
+and `ncio`.
+
+Because `stagger` is expressed as a coordinate offset rather than a code path,
+fesm-utils' `staggering` module is not needed either: nothing downstream
+branches on where the host's velocities sat.
 
 ## Precision
 

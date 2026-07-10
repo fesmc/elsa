@@ -62,11 +62,16 @@ $(objdir)/elsa_precision.o: $(srcdir)/elsa_precision.f90
 $(objdir)/elsa_physics.o: $(srcdir)/elsa_physics.f90 $(objdir)/elsa_precision.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
-$(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_physics.o
+$(objdir)/elsa_interp.o: $(srcdir)/elsa_interp.f90 $(objdir)/elsa_precision.o
+	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
+
+$(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_physics.o \
+				  $(objdir)/elsa_interp.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
 obj_elsa =	$(objdir)/elsa_precision.o \
 			$(objdir)/elsa_physics.o \
+			$(objdir)/elsa_interp.o \
 			$(objdir)/elsa.o
 
 ###############################################
@@ -92,8 +97,17 @@ physics: elsa-static
 	@echo "    $(bindir)/test_physics.x is ready."
 	@echo " "
 
-.PHONY: all usage clean check run-physics
-all: physics
+# Benchmark: the elsa_interp maps. Conservative horizontal remap, bilinear
+# velocity onto faces, and the layer-mean vertical integral.
+interp: elsa-static
+	$(FC) $(DFLAGS) $(FFLAGS) -o $(bindir)/test_interp.x $(srcdir)/test_interp.f90 \
+		$(LIB_ELSA) $(LFLAGS)
+	@echo " "
+	@echo "    $(bindir)/test_interp.x is ready."
+	@echo " "
+
+.PHONY: all usage clean check run-physics run-interp
+all: physics interp
 
 ###############################################
 ##
@@ -104,8 +118,11 @@ all: physics
 run-physics: physics
 	./$(bindir)/test_physics.x
 
+run-interp: interp
+	./$(bindir)/test_interp.x
+
 # Run every benchmark. Any of them failing exits nonzero and fails here.
-check: run-physics
+check: run-physics run-interp
 	@echo " "
 	@echo "    All benchmarks passed."
 	@echo " "
@@ -116,9 +133,11 @@ usage:
 	@echo ""
 	@echo " make elsa-static  : compiles the static library libelsa.a"
 	@echo " make physics      : compiles test_physics.x, the kernel benchmarks"
+	@echo " make interp       : compiles test_interp.x, the interpolation benchmarks"
 	@echo " make all          : compiles everything"
 	@echo ""
 	@echo " make run-physics  : runs the kernel benchmarks"
+	@echo " make run-interp   : runs the interpolation benchmarks"
 	@echo " make check        : runs all benchmarks; nonzero exit on any failure"
 	@echo ""
 	@echo " make clean        : cleans object files and programs"

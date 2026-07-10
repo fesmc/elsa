@@ -20,9 +20,9 @@ reimplementation of the Bergen ELSA v2.0
 not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
-> **Status: under construction.** The build, the package wiring and the
-> advection and layer kernels are in place, with benchmarks: `make check`
-> passes. The interpolation layer, the public API, I/O and restart are still
+> **Status: under construction.** The build, the package wiring, the advection
+> and layer kernels, and the interpolation layer are in place, each with
+> benchmarks: `make check` passes. The public API, I/O and restart are still
 > being written.
 
 ## Install
