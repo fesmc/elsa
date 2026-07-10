@@ -322,3 +322,27 @@ single; this decouples elsa from that choice.
   - **Restart** is new. v2.0 could not restart at all: `elsa_dealloc` freed
     seven of the nine arrays `elsa_init` allocated, so a second `elsa_init` on
     the same object aborted on an already-allocated array.
+
+## Restart
+
+`elsa_restart_write` stores only what cannot be reconstructed: `d_iso`,
+`H_ice_prev`, `time`, `n_top`, `i_add`, and the isochrone schedule `time_add`.
+`dsum_iso` is derived from `d_iso`; the velocities and mass balance are remapped
+from the host on every update.
+
+Two details matter, and the round-trip test would fail without either:
+
+  - `d_iso` and `H_ice_prev` are written in **double** precision, unlike the
+    diagnostic output of `elsa_write_step`, which is single. A restart that
+    loses bits does not reproduce the run it continues.
+  - `time_add` travels in the restart rather than being regenerated from
+    `layer_resolution`. Rebuilding it from the restart time would shift every
+    subsequent isochrone.
+
+The grid the restart was written on must match the grid it is read onto —
+dimensions, axes and `zeta`. A mismatch is a hard error, not something to
+interpolate away silently.
+
+`test_greenland.x` asserts that a run stopped, written and restarted is
+**bit-identical** to the run that never stopped. That is the only check strong
+enough to catch a piece of state being reconstructed instead of carried.

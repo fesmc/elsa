@@ -20,10 +20,10 @@ reimplementation of the Bergen ELSA v2.0
 not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
-> **Status: under construction.** The library, its public API, NetCDF output and
-> both benchmarks are in place: `make check` passes serial, OpenMP, and under
-> bounds checking. Restart, the Yelmox coupling and the Julia analysis are still
-> being written.
+> **Status: under construction.** The library, its public API, NetCDF output,
+> restart and both benchmarks are in place: `make check` passes serial, OpenMP,
+> and under bounds checking. The Yelmox coupling and the Julia analysis are
+> still being written.
 
 ## Install
 
@@ -106,6 +106,19 @@ whether an update is due, and keeps its own previous-step ice thickness. The
 host calls it unconditionally, once per timestep, and manages none of elsa's
 bookkeeping. `time_end` is needed at init only to size the layer stack, which is
 allocated once and never grown.
+
+To restart, write a file and pass it back:
+
+```fortran
+call elsa_restart_write(els,"elsa_restart.nc")
+...
+call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy", &
+               restart="elsa_restart.nc")
+```
+
+The layer stack and the isochrone schedule then come from the file rather than
+from `time_end` and `layer_resolution`. A restarted run is bit-identical to the
+run that never stopped, which `test_greenland.x` asserts.
 
 Build with `openmp=1` to thread the layer loop. The layers never exchange mass,
 so the result is bit-identical to the serial one at any thread count.

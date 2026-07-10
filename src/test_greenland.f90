@@ -47,6 +47,7 @@ program test_greenland
     call run_case("greenland_coarse",.false.,n_fail)
 
     call check_output(n_fail)
+    call test_restart(n_fail)
 
     write(*,*) ""
     if (n_fail .gt. 0) then
@@ -292,5 +293,69 @@ contains
         write(*,'(a,a)') "   wrote ", FILE_OUT
 
     end subroutine check_output
+
+    subroutine test_restart(n_fail)
+        ! A run stopped, written, and restarted must be bit-identical to the run
+        ! that never stopped. Anything less means some piece of state -- n_top,
+        ! i_add, H_ice_prev, the isochrone schedule -- is being reconstructed
+        ! rather than carried, and the restart silently diverges.
+        integer, intent(inout) :: n_fail
+
+        character(len=*), parameter :: GROUP    = "greenland_coarse"
+        character(len=*), parameter :: FILE_RST = "output/GRL-16KM/elsa_restart.nc"
+        real(wp),         parameter :: TIME_MID = 1000.0_wp
+
+        type(elsa_class) :: els
+        real(wp), allocatable :: d_ref(:,:,:)
+        real(wp) :: time, dt
+        integer  :: n, n_top_ref, i_add_ref
+
+        write(*,*) ""
+        write(*,*) " restart round-trip"
+
+        ! -- reference: one continuous run ------------------------------------
+        call elsa_init(els,"par/test_greenland.nml",GROUP,TIME_0,TIME_1,xc,yc,zeta,H_ice,"acx_acy")
+        dt = els%par%dt_coupling
+        do n = 1, nint((TIME_1-TIME_0)/dt)
+            call elsa_update(els,TIME_0+real(n,wp)*dt,H_ice,ux,uy,smb,bmb)
+        end do
+        allocate(d_ref(size(els%now%d_iso,1),size(els%now%d_iso,2),size(els%now%d_iso,3)))
+        d_ref     = els%now%d_iso
+        n_top_ref = els%now%n_top
+        i_add_ref = els%now%i_add
+        call elsa_end(els)
+
+        ! -- stop halfway and write a restart ---------------------------------
+        call elsa_init(els,"par/test_greenland.nml",GROUP,TIME_0,TIME_1,xc,yc,zeta,H_ice,"acx_acy")
+        do n = 1, nint((TIME_MID-TIME_0)/dt)
+            call elsa_update(els,TIME_0+real(n,wp)*dt,H_ice,ux,uy,smb,bmb)
+        end do
+        call elsa_restart_write(els,FILE_RST)
+        call elsa_end(els)
+
+        ! -- pick it up and run to the end ------------------------------------
+        call elsa_init(els,"par/test_greenland.nml",GROUP,TIME_MID,TIME_1,xc,yc,zeta,H_ice, &
+                       "acx_acy",restart=FILE_RST)
+
+        call check(els%now%time  .eq. TIME_MID, "restart recovers time     ",n_fail)
+        call check(els%now%n_top .gt. els%par%n_layers_init,"restart recovers n_top    ",n_fail)
+
+        do n = 1, nint((TIME_1-TIME_MID)/dt)
+            time = TIME_MID + real(n,wp)*dt
+            call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
+        end do
+
+        call check(els%now%n_top .eq. n_top_ref,"restart ends at same n_top",n_fail)
+        call check(els%now%i_add .eq. i_add_ref,"restart ends at same i_add",n_fail)
+        call check(maxval(abs(els%now%d_iso - d_ref)) .eq. 0.0_wp, &
+                                                "restart is bit-identical  ",n_fail)
+
+        write(*,'(a,es9.2,a)') "   max |d_iso - d_iso_continuous| = ", &
+                               maxval(abs(els%now%d_iso - d_ref)), " m"
+
+        call elsa_end(els)
+        deallocate(d_ref)
+
+    end subroutine test_restart
 
 end program test_greenland

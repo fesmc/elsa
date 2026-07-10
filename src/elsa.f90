@@ -33,6 +33,7 @@ module elsa
     public :: elsa_class, elsa_param_class, elsa_state_class, elsa_map_class
     public :: elsa_init, elsa_update, elsa_end
     public :: elsa_write_init, elsa_write_step
+    public :: elsa_restart_write
     public :: elsa_version
 
     character(len=*), parameter :: elsa_version = "3.0.0-dev"
@@ -57,7 +58,7 @@ contains
     ! Public interface
     ! ======================================================================
 
-    subroutine elsa_init_dp(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger)
+    subroutine elsa_init_dp(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger,restart)
         ! `x`, `y` are the host's cell-centre axes; `zeta` its sigma levels,
         ! ascending, 0 at the bed and 1 at the surface, with size(zeta) equal to
         ! size(ux,3). `stagger` says where the host's velocity samples sit:
@@ -66,47 +67,81 @@ contains
         ! `time_end` sizes the layer stack, which is allocated once and never
         ! grown: a 100 kyr run at 200 yr resolution holds ~500 layers, and
         ! reallocating that is not something to do inside a time loop.
+        !
+        ! With `restart`, the layer stack and the isochrone schedule come from the
+        ! file rather than from `time_end` and `layer_resolution`, and `time` is
+        ! taken from the file too. The remaining namelist parameters (dt_coupling,
+        ! cfl, grid_factor, allow_pos_bmb) are still read, so they may be changed
+        ! across a restart -- but a changed grid_factor will fail the grid check.
 
-        type(elsa_class), intent(inout) :: els
-        character(len=*), intent(in)    :: filename, group
-        real(dp),         intent(in)    :: time, time_end
-        real(dp),         intent(in)    :: x(:), y(:), zeta(:)
-        real(dp),         intent(in)    :: H_ice(:,:)
-        character(len=*), intent(in)    :: stagger
+        type(elsa_class),           intent(inout) :: els
+        character(len=*),           intent(in)    :: filename, group
+        real(dp),                   intent(in)    :: time, time_end
+        real(dp),                   intent(in)    :: x(:), y(:), zeta(:)
+        real(dp),                   intent(in)    :: H_ice(:,:)
+        character(len=*),           intent(in)    :: stagger
+        character(len=*), optional, intent(in)    :: restart
 
         integer :: k
+        logical :: is_restart
+
+        is_restart = present(restart)
+        if (is_restart) then
+            if (trim(restart) .eq. "None" .or. len_trim(restart) .eq. 0) is_restart = .false.
+        end if
 
         call elsa_par_load(els%par,filename,group)
-        call elsa_build_time_add(els%par,time,time_end)
+
+        if (is_restart) then
+            call elsa_restart_read_par(els%par,restart)
+        else
+            call elsa_build_time_add(els%par,time,time_end)
+            els%par%n_layers = els%par%n_layers_init + size(els%par%time_add) + 1
+        end if
 
         call elsa_map_init(els%map,x,y,zeta,stagger,els%par%grid_factor)
-
-        els%par%n_layers = els%par%n_layers_init + size(els%par%time_add) + 1
 
         call elsa_alloc(els%now,els%map%nx,els%map%ny,els%map%nz,els%par%n_layers)
 
         call map_scalar(els%map,H_ice,els%now%H_ice)
-        els%now%H_ice_prev = els%now%H_ice
 
-        ! Initialization layers: equal thickness, filling the column.
-        els%now%n_top = els%par%n_layers_init
-        do k = 1, els%now%n_top
-            els%now%d_iso(:,:,k) = els%now%H_ice/real(els%now%n_top,wp)
-        end do
-        call normalize_layers(els%now%d_iso,els%now%H_ice,els%now%n_top)
+        els%now%n_reseed = 0
 
-        ! One empty layer on top, to receive accumulation until the first
-        ! isochrone is laid down.
-        els%now%n_top = els%now%n_top + 1
+        if (is_restart) then
+
+            call elsa_restart_read_state(els,restart)
+
+            if (abs(els%now%time - time) .gt. TIME_TOL*max(1.0_wp,abs(time))) then
+                write(*,'(a)')        " elsa:: Warning: restart time differs from the host's."
+                write(*,'(a,f14.2)')  "   restart : ", els%now%time
+                write(*,'(a,f14.2)')  "   host    : ", time
+                write(*,'(a)')        "   Using the restart time; the first update will span the gap."
+            end if
+
+        else
+
+            els%now%H_ice_prev = els%now%H_ice
+
+            ! Initialization layers: equal thickness, filling the column.
+            els%now%n_top = els%par%n_layers_init
+            do k = 1, els%now%n_top
+                els%now%d_iso(:,:,k) = els%now%H_ice/real(els%now%n_top,wp)
+            end do
+            call normalize_layers(els%now%d_iso,els%now%H_ice,els%now%n_top)
+
+            ! One empty layer on top, to receive accumulation until the first
+            ! isochrone is laid down.
+            els%now%n_top = els%now%n_top + 1
+
+            els%now%time           = time
+            els%now%i_add          = 1
+            els%now%n_reseed_total = 0
+
+        end if
 
         call calc_dsum(els%now%dsum_iso,els%now%d_iso,els%now%n_top)
 
-        els%now%time           = time
-        els%now%i_add          = 1
-        els%now%n_reseed       = 0
-        els%now%n_reseed_total = 0
-
-        call elsa_print_summary(els)
+        call elsa_print_summary(els,is_restart)
 
     end subroutine elsa_init_dp
 
@@ -189,16 +224,17 @@ contains
     ! Single-precision entry points. A host never casts.
     ! ======================================================================
 
-    subroutine elsa_init_sp(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger)
-        type(elsa_class), intent(inout) :: els
-        character(len=*), intent(in)    :: filename, group
-        real(sp),         intent(in)    :: time, time_end
-        real(sp),         intent(in)    :: x(:), y(:), zeta(:)
-        real(sp),         intent(in)    :: H_ice(:,:)
-        character(len=*), intent(in)    :: stagger
+    subroutine elsa_init_sp(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger,restart)
+        type(elsa_class),           intent(inout) :: els
+        character(len=*),           intent(in)    :: filename, group
+        real(sp),                   intent(in)    :: time, time_end
+        real(sp),                   intent(in)    :: x(:), y(:), zeta(:)
+        real(sp),                   intent(in)    :: H_ice(:,:)
+        character(len=*),           intent(in)    :: stagger
+        character(len=*), optional, intent(in)    :: restart
 
         call elsa_init_dp(els,filename,group,real(time,dp),real(time_end,dp), &
-                          real(x,dp),real(y,dp),real(zeta,dp),real(H_ice,dp),stagger)
+                          real(x,dp),real(y,dp),real(zeta,dp),real(H_ice,dp),stagger,restart)
 
     end subroutine elsa_init_sp
 
@@ -471,11 +507,16 @@ contains
 
     end subroutine elsa_read_layer_file
 
-    subroutine elsa_print_summary(els)
+    subroutine elsa_print_summary(els,is_restart)
         type(elsa_class), intent(in) :: els
+        logical,          intent(in) :: is_restart
 
         write(*,*) ""
-        write(*,'(a)')          " elsa "//elsa_version
+        if (is_restart) then
+            write(*,'(a,f0.2,a)') " elsa "//elsa_version//" (restarted at time ", els%now%time, ")"
+        else
+            write(*,'(a)')        " elsa "//elsa_version
+        end if
         write(*,'(a,i0,a,i0)')  "   grid          : ", els%map%nx, " x ", els%map%ny
         write(*,'(a,f10.1,a)')  "   dx            : ", els%map%dx, " m"
         write(*,'(a,f10.1,a)')  "   grid_factor   : ", els%par%grid_factor, ""
