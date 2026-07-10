@@ -1,0 +1,48 @@
+! Parameters for test_column.x, the Nye analytic ice-divide benchmark.
+!
+! No horizontal flow, constant ice thickness, constant accumulation. Each group
+! differs only in dt_coupling, so the benchmark can measure the convergence of
+! elsa's discrete layer thinning onto the Nye analytic solution.
+
+! Exactness of the discrete solution: fine isochrone resolution.
+&column
+    n_layers_init    = 10          ! [1]  initialization layers
+    layer_resolution = 1000.0      ! [yr] add an isochrone this often
+    layer_file       = "None"      ! [-]  or an explicit list of isochrone times
+    grid_factor      = 1.0         ! [1]  coarsen the host grid by this factor
+    dt_coupling      = 100.0       ! [yr] elsa update interval
+    cfl              = 0.9         ! [1]  advection sub-step target
+    allow_pos_bmb    = False       ! [-]  let freeze-on thicken the bottom layer
+/
+
+! Convergence onto Nye as dt_coupling -> 0. Coarse isochrones: only the oldest
+! one, laid down at time_init, is compared.
+&column_dt200
+    n_layers_init    = 10
+    layer_resolution = 5000.0
+    layer_file       = "None"
+    grid_factor      = 1.0
+    dt_coupling      = 200.0
+    cfl              = 0.9
+    allow_pos_bmb    = False
+/
+
+&column_dt100
+    n_layers_init    = 10
+    layer_resolution = 5000.0
+    layer_file       = "None"
+    grid_factor      = 1.0
+    dt_coupling      = 100.0
+    cfl              = 0.9
+    allow_pos_bmb    = False
+/
+
+&column_dt50
+    n_layers_init    = 10
+    layer_resolution = 5000.0
+    layer_file       = "None"
+    grid_factor      = 1.0
+    dt_coupling      = 50.0
+    cfl              = 0.9
+    allow_pos_bmb    = False
+/

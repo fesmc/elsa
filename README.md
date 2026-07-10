@@ -20,10 +20,10 @@ reimplementation of the Bergen ELSA v2.0
 not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
-> **Status: under construction.** The build, the package wiring, the advection
-> and layer kernels, and the interpolation layer are in place, each with
-> benchmarks: `make check` passes. The public API, I/O and restart are still
-> being written.
+> **Status: under construction.** The library and its public API are in place
+> and validated end-to-end against the Nye analytic solution: `make check`
+> passes. NetCDF output, restart, the Greenland benchmark and the Julia analysis
+> are still being written.
 
 ## Install
 
@@ -53,30 +53,46 @@ make usage           # all targets
 
 Add `debug=1` to any build for bounds checking and floating-point traps.
 
-## Planned interface
+## Benchmarks
 
-The API below is the target of the current work, not yet implemented.
+```bash
+make check           # runs every benchmark; nonzero exit on any failure
+```
+
+`test_column.x` is the quantitative one. At an ice divide with no horizontal
+flow, constant thickness and constant accumulation, elsa's isochrones must
+follow Nye's `z = H exp(-a t/H)`. elsa never computes a vertical velocity — the
+thinning emerges from adding accumulation to the top layer and renormalizing the
+column — and it converges onto Nye at first order in the coupling period.
+
+## Using the library
 
 ```fortran
 use elsa
 
 type(elsa_class) :: els
 
-call elsa_init(els,"elsa.nml","elsa",time=time,x=xc,y=yc,zeta=zeta_aa, &
-               stagger="acx_acy",H_ice=H_ice)
+call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy")
 
-call elsa_update(els,time=time,H_ice=H_ice,ux=ux,uy=uy,smb=smb,bmb=bmb)
+call elsa_update(els,time,H_ice,ux,uy,smb,bmb)   ! every host timestep
+
+call elsa_end(els)
 ```
 
 `zeta` must be a strictly ascending sigma axis with `zeta(1) = 0` at the bed and
 `zeta(nz) = 1` at the surface, and `size(zeta) == size(ux,3)`. `stagger`
 declares where the host's velocity samples sit: `"acx_acy"` for staggered
 velocities (Yelmo), `"aa"` for cell-centred ones. Host fields may be single or
-double precision.
+double precision — elsa converts at the boundary, so a host never casts.
 
-`elsa_update` takes an absolute time, decides internally whether an update is
-due, and keeps its own previous-step ice thickness — so the host calls it
-unconditionally, once per timestep.
+`elsa_update` takes an absolute time, works out its own `dt`, decides internally
+whether an update is due, and keeps its own previous-step ice thickness. The
+host calls it unconditionally, once per timestep, and manages none of elsa's
+bookkeeping. `time_end` is needed at init only to size the layer stack, which is
+allocated once and never grown.
+
+Build with `openmp=1` to thread the layer loop. The layers never exchange mass,
+so the result is bit-identical to the serial one at any thread count.
 
 Diagnostics and figures are Julia, under `analysis/`, plotted with CairoMakie:
 the Fortran benchmarks assert and exit nonzero, Julia validates quantitatively

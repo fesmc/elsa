@@ -147,6 +147,47 @@ Zero normal flux at the domain edge, so global mass is conserved exactly. v2.0
 instead froze layer thickness at boundary cells. Ice reaching the elsa domain
 boundary is a host-domain problem, not something elsa should paper over.
 
+## The update sequence
+
+`elsa_update` receives an absolute time and does nothing unless a coupling
+period has elapsed. When it fires, in order:
+
+1. Map `H_ice`, `smb`, `bmb` and the velocities onto elsa's grid.
+2. Normalize the layer stack onto `H_ice_prev` — the host thickness the incoming
+   velocities were computed on.
+3. Add `smb·dt` to the top layer, `bmb·dt` to the bottom, exhausting layers in
+   turn where the balance is negative.
+4. Accumulate `dsum`, then take the layer-mean velocity at every face.
+5. Advect each layer independently.
+6. Normalize onto `H_ice`. Horizontal layer advection is not the host's mass
+   conservation, so this is the drift correction. Relative layer thicknesses are
+   unchanged.
+7. Lay down any isochrone whose time has been reached.
+
+Steps 2 and 6 are where elsa's vertical motion comes from. It never computes a
+vertical velocity: adding accumulation on top and renormalizing the column
+multiplies every layer height by `H/(H + a·dt)`, which is Nye's uniform
+vertical strain in the limit `dt -> 0`. `test_column.x` asserts both the
+discrete result (exact to 5e-15) and its first-order convergence onto
+`z = H·exp(-a·t/H)`.
+
+elsa owns `H_ice_prev` and the isochrone schedule. v2.0 made the driver
+hand-manage the previous ice thickness across two lines 180 apart in
+`yelmox_elsa.f90` and wrap the call in its own `its_time` check.
+
+Where `layer_resolution < dt_coupling`, more than one isochrone falls inside a
+coupling period. v2.0 rejected that configuration at init; elsa lays down each
+of them (the extra layers simply receive no accumulation) and warns at init.
+
+### The face column
+
+The layer-mean velocity needs the column geometry *at each face*. elsa takes it
+as the average of the two cell columns the face separates, so
+`dsum_face(n_top) = H_face` holds by construction — including at the margin,
+where one neighbour is ice-free and the face thickness is half the ice-covered
+cell's. Mapping the host's `H` straight onto a face grid with its own
+conservative weights would not stay consistent with elsa's own layer stack.
+
 ## Vertical interpolation of the host velocity
 
 R24 states only that host velocities are *"linearly interpolated in the

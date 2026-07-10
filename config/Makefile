@@ -65,13 +65,17 @@ $(objdir)/elsa_physics.o: $(srcdir)/elsa_physics.f90 $(objdir)/elsa_precision.o
 $(objdir)/elsa_interp.o: $(srcdir)/elsa_interp.f90 $(objdir)/elsa_precision.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
-$(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_physics.o \
-				  $(objdir)/elsa_interp.o
+$(objdir)/elsa_defs.o: $(srcdir)/elsa_defs.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_interp.o
+	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
+
+$(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_defs.o \
+				  $(objdir)/elsa_physics.o $(objdir)/elsa_interp.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
 obj_elsa =	$(objdir)/elsa_precision.o \
 			$(objdir)/elsa_physics.o \
 			$(objdir)/elsa_interp.o \
+			$(objdir)/elsa_defs.o \
 			$(objdir)/elsa.o
 
 ###############################################
@@ -106,8 +110,17 @@ interp: elsa-static
 	@echo "    $(bindir)/test_interp.x is ready."
 	@echo " "
 
-.PHONY: all usage clean check run-physics run-interp
-all: physics interp
+# Benchmark: the Nye analytic ice-divide column. End-to-end through the public
+# API -- init, mass balance, normalization, layer insertion.
+column: elsa-static
+	$(FC) $(DFLAGS) $(FFLAGS) -o $(bindir)/test_column.x $(srcdir)/test_column.f90 \
+		$(LIB_ELSA) $(LFLAGS)
+	@echo " "
+	@echo "    $(bindir)/test_column.x is ready."
+	@echo " "
+
+.PHONY: all usage clean check run-physics run-interp run-column
+all: physics interp column
 
 ###############################################
 ##
@@ -121,8 +134,11 @@ run-physics: physics
 run-interp: interp
 	./$(bindir)/test_interp.x
 
+run-column: column
+	./$(bindir)/test_column.x
+
 # Run every benchmark. Any of them failing exits nonzero and fails here.
-check: run-physics run-interp
+check: run-physics run-interp run-column
 	@echo " "
 	@echo "    All benchmarks passed."
 	@echo " "
