@@ -159,10 +159,11 @@ period has elapsed. When it fires, in order:
    turn where the balance is negative.
 4. Accumulate `dsum`, then take the layer-mean velocity at every face.
 5. Advect each layer independently.
-6. Normalize onto `H_ice`. Horizontal layer advection is not the host's mass
+6. Reseed any column elsa emptied that the host still has ice in (below).
+7. Normalize onto `H_ice`. Horizontal layer advection is not the host's mass
    conservation, so this is the drift correction. Relative layer thicknesses are
    unchanged.
-7. Lay down any isochrone whose time has been reached.
+8. Lay down any isochrone whose time has been reached.
 
 Steps 2 and 6 are where elsa's vertical motion comes from. It never computes a
 vertical velocity: adding accumulation on top and renormalizing the column
@@ -178,6 +179,33 @@ hand-manage the previous ice thickness across two lines 180 apart in
 Where `layer_resolution < dt_coupling`, more than one isochrone falls inside a
 coupling period. v2.0 rejected that configuration at init; elsa lays down each
 of them (the extra layers simply receive no accumulation) and warns at init.
+
+### Emptied columns
+
+Surface ablation removes ice from the top layer downward and stops when the
+column runs out — it cannot remove ice that is not there. Where `-smb·dt`
+exceeds the whole column, that leaves it at exactly zero, and the normalization
+has nothing to rescale: the column is dead for the rest of the run. v2.0 has the
+same hole — `normalise_d` zeroes a column whose sum is not positive, silently
+and permanently.
+
+On the 16 km Greenland benchmark, 85 of 7204 ice cells satisfy `-smb·dt > H` at
+`dt_coupling = 50 yr`. All are thin margin cells (3–244 m against a median ice
+thickness of 1718 m). Advection refills most of them; about nine per step do not
+recover.
+
+elsa gives those columns the host's ice back, **in layer 1, at the bed**.
+Ablation eats a column from the top, so the last ice standing before exhaustion
+is the deepest; putting the survivor there is the consistent continuation of the
+process that destroyed the column, and it is where basal freeze-on already goes.
+Reseeding at the top would instead claim the ice is young, contradicting the
+process that removed it.
+
+This is defined behaviour for an under-determined state — elsa cannot date ice
+it believes it removed — not a correction to a bug. It is **counted**, not
+silent: `now%n_reseed` (last update) and `now%n_reseed_total`, with a note on
+first occurrence. A large or growing per-step count means `dt_coupling` is too
+long, or the forcing is inconsistent.
 
 ### The face column
 

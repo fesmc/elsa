@@ -22,6 +22,7 @@ module elsa
     use elsa_defs
     use elsa_physics
     use elsa_interp
+    use elsa_io
     use nml, only : nml_read
 
     implicit none
@@ -29,8 +30,9 @@ module elsa
     private
 
     public :: sp, dp, wp
-    public :: elsa_class, elsa_param_class, elsa_state_class
+    public :: elsa_class, elsa_param_class, elsa_state_class, elsa_map_class
     public :: elsa_init, elsa_update, elsa_end
+    public :: elsa_write_init, elsa_write_step
     public :: elsa_version
 
     character(len=*), parameter :: elsa_version = "3.0.0-dev"
@@ -99,8 +101,10 @@ contains
 
         call calc_dsum(els%now%dsum_iso,els%now%d_iso,els%now%n_top)
 
-        els%now%time  = time
-        els%now%i_add = 1
+        els%now%time           = time
+        els%now%i_add          = 1
+        els%now%n_reseed       = 0
+        els%now%n_reseed_total = 0
 
         call elsa_print_summary(els)
 
@@ -142,6 +146,21 @@ contains
         ! -- transport
         call elsa_interp_layer_velocities(els)
         call elsa_advect_layers(els,dt)
+
+        ! -- restore any column the mass balance emptied that the host still has
+        !    ice in, before the normalization tries to rescale nothing
+        call reseed_empty_columns(els%now%d_iso,els%now%H_ice,els%now%n_top,els%now%n_reseed)
+
+        if (els%now%n_reseed .gt. 0) then
+            els%now%n_reseed_total = els%now%n_reseed_total + els%now%n_reseed
+            if (els%now%n_reseed_total .eq. els%now%n_reseed) then
+                write(*,'(a,i0,a,f10.1)') " elsa:: Note: reseeded ", els%now%n_reseed, &
+                        " emptied column(s) at the bed, first at time ", time
+                write(*,'(a)')            "   Expected in small numbers at thin margins where -smb*dt exceeds"
+                write(*,'(a)')            "   the ice thickness. A large or growing count means dt_coupling is"
+                write(*,'(a)')            "   too long, or the forcing is inconsistent. See now%n_reseed_total."
+            end if
+        end if
 
         ! -- drift correction: horizontal layer advection is not the host's mass
         !    conservation, so renormalize onto the host's ice thickness. The
@@ -256,6 +275,14 @@ contains
         ! writes a disjoint slice and no synchronization is needed. v2.0 wrapped
         ! this loop in an OMP CRITICAL section, and called the LIS solver's
         ! global initialize/finalize inside every thread.
+        !
+        ! Dynamic scheduling: a layer's cost is its substep count, which is set by
+        ! its own maximum outflow rate anywhere on the grid. On Greenland the
+        ! layers turn out near-uniform (16 substeps at the bed against 17 at the
+        ! surface, because the fast outlets slide, so every layer sees a similar
+        ! grid maximum), and dynamic buys nothing. It is cheap insurance for a
+        ! domain with a largely frozen bed, where the deep layers are genuinely
+        ! slow and a static split would hand one thread all the fast ones.
 
         type(elsa_class), intent(inout) :: els
         real(wp),         intent(in)    :: dt
@@ -269,7 +296,7 @@ contains
         !$omp parallel private(iz,fx,fy)
         allocate(fx(nx,ny),fy(nx,ny))
 
-        !$omp do
+        !$omp do schedule(dynamic)
         do iz = 1, els%now%n_top
             call advect_layer(els%now%d_iso(:,:,iz),els%now%ux_iso(:,:,iz), &
                               els%now%uy_iso(:,:,iz),els%map%dx,els%map%dy, &

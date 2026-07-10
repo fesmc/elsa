@@ -86,14 +86,16 @@ contains
 
         integer  :: i, j, nx_src, ny_src
         real(wp) :: dx_src, dy_src, x0, y0
+        real(wp), allocatable :: xs(:), ys(:)
         real(wp), allocatable :: xu_src(:), yu_src(:), xv_src(:), yv_src(:)
         real(wp), allocatable :: x_acx(:), y_acy(:)
 
         nx_src = size(x_src)
         ny_src = size(y_src)
 
-        call check_axis(x_src,"x_src")
-        call check_axis(y_src,"y_src")
+        dx_src = axis_spacing(x_src,"x_src")
+        dy_src = axis_spacing(y_src,"y_src")
+
         call check_zeta(zeta,size(zeta))
 
         if (grid_factor .lt. 1.0_wp) then
@@ -101,8 +103,17 @@ contains
             error stop 1
         end if
 
-        dx_src = x_src(2) - x_src(1)
-        dy_src = y_src(2) - y_src(1)
+        ! Rebuild the host axes as exactly uniform, anchored on their endpoints.
+        ! They were just asserted uniform to within 0.1%, and a single-precision
+        ! netCDF axis is not: mixing the noisy coordinates with a uniform cell
+        ! width makes a target cell clip zero-width slivers off its neighbours.
+        allocate(xs(nx_src),ys(ny_src))
+        do i = 1, nx_src
+            xs(i) = x_src(1) + real(i-1,wp)*dx_src
+        end do
+        do j = 1, ny_src
+            ys(j) = y_src(1) + real(j-1,wp)*dy_src
+        end do
 
         map%nz = size(zeta)
         if (allocated(map%zeta)) deallocate(map%zeta)
@@ -119,8 +130,8 @@ contains
         if (allocated(map%y)) deallocate(map%y)
         allocate(map%x(map%nx),map%y(map%ny))
 
-        x0 = x_src(1) - 0.5_wp*dx_src        ! outer edge of the source domain
-        y0 = y_src(1) - 0.5_wp*dy_src
+        x0 = xs(1) - 0.5_wp*dx_src            ! outer edge of the source domain
+        y0 = ys(1) - 0.5_wp*dy_src
 
         do i = 1, map%nx
             map%x(i) = x0 + (real(i,wp) - 0.5_wp)*map%dx
@@ -135,15 +146,15 @@ contains
 
         select case (trim(stagger))
             case ("acx_acy")
-                xu_src = x_src + 0.5_wp*dx_src
-                yu_src = y_src
-                xv_src = x_src
-                yv_src = y_src + 0.5_wp*dy_src
+                xu_src = xs + 0.5_wp*dx_src
+                yu_src = ys
+                xv_src = xs
+                yv_src = ys + 0.5_wp*dy_src
             case ("aa")
-                xu_src = x_src
-                yu_src = y_src
-                xv_src = x_src
-                yv_src = y_src
+                xu_src = xs
+                yu_src = ys
+                xv_src = xs
+                yv_src = ys
             case default
                 write(*,*) "elsa_map_init:: Error: unknown stagger '"//trim(stagger)//"'"
                 write(*,*) "  expected 'acx_acy' (velocities on staggered faces) or 'aa' (cell-centred)"
@@ -155,8 +166,8 @@ contains
         x_acx = map%x + 0.5_wp*map%dx
         y_acy = map%y + 0.5_wp*map%dy
 
-        call axis_map_conservative(map%cons_x,x_src,dx_src,map%x,map%dx)
-        call axis_map_conservative(map%cons_y,y_src,dy_src,map%y,map%dy)
+        call axis_map_conservative(map%cons_x,xs,dx_src,map%x,map%dx)
+        call axis_map_conservative(map%cons_y,ys,dy_src,map%y,map%dy)
 
         call axis_map_linear(map%ux_x,xu_src,x_acx)
         call axis_map_linear(map%ux_y,yu_src,map%y)
@@ -346,7 +357,7 @@ contains
         real(wp),             intent(in)    :: xs(:), dxs, xt(:), dxt
 
         integer  :: ns, nt, i, t, i0, i1, n
-        real(wp) :: lo, hi, s_lo, s_hi, ov, wsum, x_edge
+        real(wp) :: lo, hi, s_lo, s_hi, ov, wsum, x_edge, ov_min
 
         ns = size(xs)
         nt = size(xt)
@@ -354,6 +365,11 @@ contains
         call axis_map_alloc(m,nt,ceiling(dxt/dxs) + 1)
 
         x_edge = xs(1) - 0.5_wp*dxs
+
+        ! Overlaps below this are rounding, not coverage. Without it a target
+        ! cell aligned with a source cell picks up two zero-width neighbours and
+        ! overruns the stencil.
+        ov_min = 1.0e-9_wp*dxs
 
         do t = 1, nt
 
@@ -367,10 +383,12 @@ contains
             wsum = 0.0_wp
 
             do i = i0, i1
-                s_lo = xs(i) - 0.5_wp*dxs
-                s_hi = xs(i) + 0.5_wp*dxs
+                ! Cell edges from the uniform model, not from xs(i) +/- dxs/2, so
+                ! that source and target edges are exactly commensurate.
+                s_lo = x_edge + real(i-1,wp)*dxs
+                s_hi = s_lo + dxs
                 ov   = min(hi,s_hi) - max(lo,s_lo)
-                if (ov .le. 0.0_wp) cycle
+                if (ov .le. ov_min) cycle
 
                 n = n + 1
                 if (n .gt. m%stencil) then
@@ -480,32 +498,45 @@ contains
     ! Validation of the host contract
     ! ======================================================================
 
-    subroutine check_axis(x,name)
+    function axis_spacing(x,name) result(dx)
+        ! Validate a host axis and return its spacing.
+        !
+        ! dx is taken from the endpoints rather than from x(2)-x(1): host axes
+        ! routinely arrive as single-precision netCDF variables, whose spacing
+        ! wobbles at the 1e-5 relative level (a 16 km Yelmo grid varies by ~0.1 m
+        ! cell to cell). The endpoint estimate averages that noise away instead
+        ! of inheriting whatever the first two points happened to round to.
         real(wp),         intent(in) :: x(:)
         character(len=*), intent(in) :: name
-
-        integer  :: i
         real(wp) :: dx
 
-        if (size(x) .lt. 2) then
+        integer  :: i, n
+
+        n = size(x)
+
+        if (n .lt. 2) then
             write(*,*) "elsa_map_init:: Error: "//name//" needs at least 2 points"
             error stop 1
         end if
 
-        dx = x(2) - x(1)
+        dx = (x(n) - x(1))/real(n-1,wp)
+
         if (dx .le. 0.0_wp) then
             write(*,*) "elsa_map_init:: Error: "//name//" must be ascending"
             error stop 1
         end if
 
-        do i = 2, size(x)
-            if (abs((x(i)-x(i-1)) - dx) .gt. 1.0e-6_wp*dx) then
+        ! 0.1% of dx: loose enough for single-precision axes, tight enough that a
+        ! genuinely stretched grid is rejected rather than silently averaged.
+        do i = 2, n
+            if (abs((x(i)-x(i-1)) - dx) .gt. 1.0e-3_wp*dx) then
                 write(*,*) "elsa_map_init:: Error: "//name//" must be uniformly spaced, breaks at i = ", i
+                write(*,*) "  spacing there = ", x(i)-x(i-1), "  expected ", dx
                 error stop 1
             end if
         end do
 
-    end subroutine check_axis
+    end function axis_spacing
 
     subroutine check_zeta(zeta,nz)
         ! elsa's host contract: velocities live on nz sigma levels, ascending,

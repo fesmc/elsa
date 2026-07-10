@@ -68,14 +68,18 @@ $(objdir)/elsa_interp.o: $(srcdir)/elsa_interp.f90 $(objdir)/elsa_precision.o
 $(objdir)/elsa_defs.o: $(srcdir)/elsa_defs.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_interp.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
+$(objdir)/elsa_io.o: $(srcdir)/elsa_io.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_defs.o
+	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
+
 $(objdir)/elsa.o: $(srcdir)/elsa.f90 $(objdir)/elsa_precision.o $(objdir)/elsa_defs.o \
-				  $(objdir)/elsa_physics.o $(objdir)/elsa_interp.o
+				  $(objdir)/elsa_physics.o $(objdir)/elsa_interp.o $(objdir)/elsa_io.o
 	$(FC) $(DFLAGS) $(FFLAGS) -c -o $@ $<
 
 obj_elsa =	$(objdir)/elsa_precision.o \
 			$(objdir)/elsa_physics.o \
 			$(objdir)/elsa_interp.o \
 			$(objdir)/elsa_defs.o \
+			$(objdir)/elsa_io.o \
 			$(objdir)/elsa.o
 
 ###############################################
@@ -119,8 +123,16 @@ column: elsa-static
 	@echo "    $(bindir)/test_column.x is ready."
 	@echo " "
 
-.PHONY: all usage clean check run-physics run-interp run-column
-all: physics interp column
+# Benchmark: 3D Greenland, forced offline from a 16 km Yelmo restart.
+greenland: elsa-static
+	$(FC) $(DFLAGS) $(FFLAGS) -o $(bindir)/test_greenland.x $(srcdir)/test_greenland.f90 \
+		$(LIB_ELSA) $(LFLAGS)
+	@echo " "
+	@echo "    $(bindir)/test_greenland.x is ready."
+	@echo " "
+
+.PHONY: all usage clean check run-physics run-interp run-column run-greenland
+all: physics interp column greenland
 
 ###############################################
 ##
@@ -137,8 +149,14 @@ run-interp: interp
 run-column: column
 	./$(bindir)/test_column.x
 
+# netCDF will not create the output directory, so a fresh clone cannot run the
+# binary directly.
+run-greenland: greenland
+	@mkdir -p output/GRL-16KM
+	./$(bindir)/test_greenland.x
+
 # Run every benchmark. Any of them failing exits nonzero and fails here.
-check: run-physics run-interp run-column
+check: run-physics run-interp run-column run-greenland
 	@echo " "
 	@echo "    All benchmarks passed."
 	@echo " "
@@ -150,10 +168,14 @@ usage:
 	@echo " make elsa-static  : compiles the static library libelsa.a"
 	@echo " make physics      : compiles test_physics.x, the kernel benchmarks"
 	@echo " make interp       : compiles test_interp.x, the interpolation benchmarks"
+	@echo " make column       : compiles test_column.x, the Nye analytic benchmark"
+	@echo " make greenland    : compiles test_greenland.x, the 3D Greenland benchmark"
 	@echo " make all          : compiles everything"
 	@echo ""
 	@echo " make run-physics  : runs the kernel benchmarks"
 	@echo " make run-interp   : runs the interpolation benchmarks"
+	@echo " make run-column   : runs the Nye analytic benchmark"
+	@echo " make run-greenland: runs the 3D Greenland benchmark"
 	@echo " make check        : runs all benchmarks; nonzero exit on any failure"
 	@echo ""
 	@echo " make clean        : cleans object files and programs"

@@ -1,0 +1,29 @@
+! Parameters for test_greenland.x, the 3D Greenland benchmark.
+!
+! Forced offline from a 16 km Yelmo restart (data/initmip-grl-16km/yelmo_restart.nc),
+! the same file the `tracer` package uses, so the two schemes can be compared on
+! identical host fields. Yelmo's ux/uy live on staggered acx/acy nodes, which is
+! what elsa's advection wants, so stagger = "acx_acy" and nothing is destaggered.
+
+! Native resolution: elsa's grid is the host's.
+&greenland
+    n_layers_init    = 10          ! [1]  initialization layers
+    layer_resolution = 200.0       ! [yr] add an isochrone this often
+    layer_file       = "None"      ! [-]  or an explicit list of isochrone times
+    grid_factor      = 1.0         ! [1]  coarsen the host grid by this factor
+    dt_coupling      = 50.0        ! [yr] elsa update interval
+    cfl              = 0.9         ! [1]  advection sub-step target
+    allow_pos_bmb    = False       ! [-]  let freeze-on thicken the bottom layer
+/
+
+! Non-integer coarsening. v2.0 required grid_factor to divide both nx and ny;
+! 106 / 2.5 and 181 / 2.5 divide neither.
+&greenland_coarse
+    n_layers_init    = 10
+    layer_resolution = 200.0
+    layer_file       = "None"
+    grid_factor      = 2.5
+    dt_coupling      = 50.0
+    cfl              = 0.9
+    allow_pos_bmb    = False
+/

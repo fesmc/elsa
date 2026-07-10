@@ -20,10 +20,10 @@ reimplementation of the Bergen ELSA v2.0
 not a fork. See [docs/DESIGN.md](docs/DESIGN.md) for where it departs from the
 published scheme, and why.
 
-> **Status: under construction.** The library and its public API are in place
-> and validated end-to-end against the Nye analytic solution: `make check`
-> passes. NetCDF output, restart, the Greenland benchmark and the Julia analysis
-> are still being written.
+> **Status: under construction.** The library, its public API, NetCDF output and
+> both benchmarks are in place: `make check` passes serial, OpenMP, and under
+> bounds checking. Restart, the Yelmox coupling and the Julia analysis are still
+> being written.
 
 ## Install
 
@@ -59,11 +59,27 @@ Add `debug=1` to any build for bounds checking and floating-point traps.
 make check           # runs every benchmark; nonzero exit on any failure
 ```
 
-`test_column.x` is the quantitative one. At an ice divide with no horizontal
-flow, constant thickness and constant accumulation, elsa's isochrones must
-follow Nye's `z = H exp(-a t/H)`. elsa never computes a vertical velocity — the
-thinning emerges from adding accumulation to the top layer and renormalizing the
-column — and it converges onto Nye at first order in the coupling period.
+**`test_physics.x`** exercises the advection and layer kernels: uniform,
+rotational, convergent and divergent flow, plus the mass-balance bookkeeping.
+The convergent and divergent cases run at a raw CFL of ~976 and stay
+non-negative, bounded and mass-conserving with no clipping anywhere in the code.
+
+**`test_interp.x`** asserts the exactness properties of the maps: conservative
+remap conserves mass at a non-integer `grid_factor`, bilinear reproduces a linear
+field at the faces for either staggering, and the layer-mean integral is exact
+for a linear velocity profile.
+
+**`test_column.x`** is the quantitative one. At an ice divide with no horizontal
+flow, constant thickness and constant accumulation, elsa's isochrones must follow
+Nye's `z = H exp(-a t/H)`. elsa never computes a vertical velocity — the thinning
+emerges from adding accumulation to the top layer and renormalizing the column —
+and it converges onto Nye at first order in the coupling period.
+
+**`test_greenland.x`** runs the 3D ice sheet at 16 km, forced offline from a
+Yelmo restart (`data/initmip-grl-16km/yelmo_restart.nc`, the same file `tracer`
+uses). The restart carries no spun-up isochrone field, so this is a structural
+check against a real velocity field, real staggering and a real margin, rather
+than a comparison with a known answer. It writes `output/GRL-16KM/elsa.nc`.
 
 ## Using the library
 

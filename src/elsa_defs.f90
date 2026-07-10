@@ -34,6 +34,13 @@ module elsa_defs
         integer  :: n_top    ! [1]  index of the topmost active layer
         integer  :: i_add    ! [1]  next entry of par%time_add still to be applied
 
+        ! Columns elsa emptied that the host still has ice in, and which were
+        ! therefore reseeded at the bed. Small counts at thin margins are
+        ! expected; a large or growing count means dt_coupling is too long or the
+        ! forcing is inconsistent. See reseed_empty_columns.
+        integer  :: n_reseed       ! [1] in the last update
+        integer  :: n_reseed_total ! [1] since init
+
         ! Layers, on elsa's grid. Layer 1 is at the bed.
         real(wp), allocatable :: d_iso(:,:,:)     ! [m] layer thickness, aa nodes
         real(wp), allocatable :: dsum_iso(:,:,:)  ! [m] height of each layer's top above the bed, aa nodes

@@ -26,6 +26,7 @@ module elsa_physics
     public :: calc_n_substeps
     public :: advect_layer
     public :: normalize_layers
+    public :: reseed_empty_columns
     public :: calc_dsum
     public :: apply_smb
     public :: apply_bmb
@@ -178,6 +179,60 @@ contains
         end do
 
     end subroutine normalize_layers
+
+    subroutine reseed_empty_columns(d,H_ice,n_top,n_reseed)
+        ! Restore a column that elsa has emptied but the host still has ice in.
+        !
+        ! Surface ablation removes ice from the top layer downward and stops when
+        ! the column runs out -- it cannot remove ice that is not there. Where
+        ! -smb*dt exceeds the whole column, that leaves it at exactly zero, and
+        ! `normalize_layers` has nothing to rescale. Without this the column is
+        ! dead for the rest of the run. (v2.0 has the same hole: normalise_d
+        ! zeroes the column when its sum is not positive, silently, forever.)
+        !
+        ! The ice goes into layer 1, at the bed. Ablation eats the column from the
+        ! top, so the last ice standing before exhaustion is the deepest; putting
+        ! the host's remaining ice there is the consistent continuation of the
+        ! process that destroyed the column. It is also where basal freeze-on goes.
+        !
+        ! This is defined behaviour for an under-determined state -- elsa cannot
+        ! date ice it believes it removed -- not a correction to a bug. `n_reseed`
+        ! is returned so the caller can report it: a large or growing count means
+        ! dt_coupling is too long, or the forcing is inconsistent.
+        !
+        ! The threshold is on the column sum, not on zero exactly. A column left
+        ! with a nanometre of ice carries no usable layer structure, and
+        ! normalizing it back up to H would amplify roundoff by a factor of 1e9.
+
+        real(wp), intent(inout) :: d(:,:,:)
+        real(wp), intent(in)    :: H_ice(:,:)
+        integer,  intent(in)    :: n_top
+        integer,  intent(out)   :: n_reseed
+
+        integer  :: i, j, nx, ny
+        real(wp) :: d_sum
+
+        nx = size(d,1)
+        ny = size(d,2)
+
+        n_reseed = 0
+
+        do j = 1, ny
+        do i = 1, nx
+
+            if (H_ice(i,j) .le. H_ICE_MIN) cycle
+
+            d_sum = sum(d(i,j,1:n_top))
+            if (d_sum .gt. H_ICE_MIN) cycle
+
+            d(i,j,1:n_top) = 0.0_wp
+            d(i,j,1)       = H_ice(i,j)
+            n_reseed       = n_reseed + 1
+
+        end do
+        end do
+
+    end subroutine reseed_empty_columns
 
     subroutine calc_dsum(dsum,d,n_top)
         ! Height of each layer's upper interface above the bed [m]. dsum(:,:,n_top)

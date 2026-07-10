@@ -301,6 +301,7 @@ contains
         integer,  parameter :: nx = 3, ny = 2, nl = 4
 
         real(wp) :: d(nx,ny,nl), H_ice(nx,ny), dm(nx,ny)
+        integer  :: n_reseed
         real(wp) :: m_before
 
         write(*,*) ""
@@ -341,6 +342,27 @@ contains
         call apply_smb(d,dm,nl)
         call check(minval(d) .ge. 0.0_wp,             "smb- cannot go negative   ",n_fail)
         call check_close(sum(d(1,1,:)),0.0_wp,1.0e-14_wp,"smb- exhausts the column  ",n_fail)
+
+        ! -- reseed_empty_columns ---------------------------------------------
+        ! A column the surface mass balance ate through, where the host still has
+        ! ice, must come back at the bed rather than stay dead forever.
+        d          = 10.0_wp
+        H_ice      = 800.0_wp
+        H_ice(3,2) = 0.0_wp                          ! genuinely ice-free
+        dm         = -999.0_wp
+        call apply_smb(d,dm,nl)                      ! annihilates every column
+
+        call reseed_empty_columns(d,H_ice,nl,n_reseed)
+
+        call check(n_reseed .eq. nx*ny - 1,           "reseeds every iced column ",n_fail)
+        call check_close(d(1,1,1),800.0_wp,1.0e-14_wp,"reseed lands at the bed   ",n_fail)
+        call check(all(d(1,1,2:nl) .eq. 0.0_wp),      "reseed leaves layers above",n_fail)
+        call check(all(d(3,2,:) .eq. 0.0_wp),         "ice-free column not seeded",n_fail)
+
+        ! A healthy column must not be touched.
+        d = 10.0_wp
+        call reseed_empty_columns(d,H_ice,nl,n_reseed)
+        call check(n_reseed .eq. 0,                   "healthy column untouched  ",n_fail)
 
         ! -- apply_bmb: freeze-on gated by allow_pos_bmb ----------------------
         d  = 10.0_wp
