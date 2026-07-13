@@ -6,7 +6,7 @@ module elsa_defs
     ! of when an update is due. A host passes fields and an absolute time; it
     ! never manages elsa's bookkeeping.
 
-    use elsa_precision, only : wp
+    use elsa_precision, only : wp, MV
     use elsa_interp,    only : elsa_map_class
 
     implicit none
@@ -40,6 +40,12 @@ module elsa_defs
         ! forcing is inconsistent. See reseed_empty_columns.
         integer  :: n_reseed       ! [1] in the last update
         integer  :: n_reseed_total ! [1] since init
+
+        ! Deposition time of each layer: a scalar per layer index, uniform in
+        ! x,y (no advection). MV for the initialization fill, which are not
+        ! isochrones, and for layers not yet laid down. The stored source of
+        ! truth for the layer->time mapping -- see elsa_add_due_layers.
+        real(wp), allocatable :: t_dep(:)         ! [yr] time the layer was laid down
 
         ! Layers, on elsa's grid. Layer 1 is at the bed.
         real(wp), allocatable :: d_iso(:,:,:)     ! [m] layer thickness, aa nodes
@@ -77,6 +83,8 @@ contains
 
         call elsa_dealloc(now)
 
+        allocate(now%t_dep(n_layers))
+
         allocate(now%d_iso(nx,ny,n_layers))
         allocate(now%dsum_iso(nx,ny,n_layers))
         allocate(now%ux_iso(nx,ny,n_layers))
@@ -89,6 +97,11 @@ contains
 
         allocate(now%ux_lev(nx,ny,nz))
         allocate(now%uy_lev(nx,ny,nz))
+
+        ! Layers carry MV until they are laid down; the init fill and the first
+        ! accumulation layer are stamped by elsa_init, the rest by
+        ! elsa_add_due_layers as their isochrones are reached.
+        now%t_dep      = MV
 
         ! Everything is set explicitly below, but a layer above n_top must never
         ! carry stale memory: v2.0 added its first layer over whatever was in the
@@ -112,6 +125,7 @@ contains
         ! which is why it could not restart.
         type(elsa_state_class), intent(inout) :: now
 
+        if (allocated(now%t_dep))      deallocate(now%t_dep)
         if (allocated(now%d_iso))      deallocate(now%d_iso)
         if (allocated(now%dsum_iso))   deallocate(now%dsum_iso)
         if (allocated(now%ux_iso))     deallocate(now%ux_iso)

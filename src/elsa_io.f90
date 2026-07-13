@@ -6,6 +6,11 @@ module elsa_io
     ! elsa's vertical axis is time -- layer k is bounded below by the isochrone
     ! of age `layer_time(k)`. The initialization layers carry a missing value,
     ! since they are not isochrones of anything.
+    !
+    ! layer_time is the state's stored t_dep, rewritten each step, so a layer not
+    ! yet laid down reads as missing until the step it is deposited. It is not a
+    ! static vector of the planned schedule: deposition times may vary at runtime,
+    ! and only the times actually realised are reported.
 
     use elsa_precision, only : sp, wp, MV
     use elsa_defs
@@ -29,14 +34,16 @@ contains
     !
     ! The file carries the full state object, so it doubles as a single-slice
     ! diagnostic snapshot. But only a subset is read back to continue a run:
-    ! d_iso, H_ice_prev, and the scalar bookkeeping. dsum_iso is derived from
-    ! d_iso, and the velocities and mass balance are remapped from the host every
-    ! update, so restoring them would have no effect -- see elsa_restart_read_state.
+    ! d_iso, H_ice_prev, t_dep, and the scalar bookkeeping. dsum_iso is derived
+    ! from d_iso, and the velocities and mass balance are remapped from the host
+    ! every update, so restoring them would have no effect -- see
+    ! elsa_restart_read_state.
     !
-    ! d_iso and H_ice_prev are written in double precision: they are read back, and
-    ! a restart that loses bits does not reproduce the run it continues. The other
-    ! fields are diagnostic only and never read back, so they are written single
-    ! precision like the output in elsa_write_step.
+    ! d_iso, H_ice_prev and t_dep are written in double precision: they are read
+    ! back, and a restart that loses bits does not reproduce the run it continues.
+    ! t_dep in particular cannot be reconstructed once deposition times vary. The
+    ! other fields are diagnostic only and never read back, so they are written
+    ! single precision like the output in elsa_write_step.
     !
     ! The isochrone schedule (time_add) travels in the restart rather than being
     ! regenerated from layer_resolution. Rebuilding it from the restart time would
@@ -75,6 +82,9 @@ contains
                       dim1="xc",dim2="yc",dim3="layer",units="m")
         call nc_write(filename,"H_ice_prev",els%now%H_ice_prev, &
                       dim1="xc",dim2="yc",units="m")
+        call nc_write(filename,"t_dep",els%now%t_dep, &
+                      dim1="layer",units="years",missing_value=MV, &
+                      long_name="Time at which the layer was laid down")
 
         ! -- diagnostic only, never read back: single precision
         call nc_write(filename,"dsum_iso",real(els%now%dsum_iso,sp), &
@@ -174,17 +184,17 @@ contains
 
         call nc_read(filename,"d_iso",     els%now%d_iso)
         call nc_read(filename,"H_ice_prev",els%now%H_ice_prev)
+        call nc_read(filename,"t_dep",     els%now%t_dep)
 
     end subroutine elsa_restart_read_state
 
     subroutine elsa_write_init(els,filename,time)
-        ! Create the output file and write everything that does not change.
+        ! Create the output file and write the fixed axes. layer_time is not
+        ! written here: it is the state's t_dep, filled in over the run and
+        ! written each step by elsa_write_step.
         type(elsa_class), intent(in) :: els
         character(len=*), intent(in) :: filename
         real(wp),         intent(in) :: time
-
-        integer :: k, n_init
-        real(wp), allocatable :: layer_time(:), layer_index(:)
 
         call nc_create(filename)
 
@@ -192,23 +202,6 @@ contains
         call nc_write_dim(filename,"yc",   x=els%map%y,units="m")
         call nc_write_dim(filename,"layer",x=1.0_wp,dx=1.0_wp,nx=els%par%n_layers,units="1")
         call nc_write_dim(filename,"time", x=time,dx=1.0_wp,nx=1,units="years",unlimited=.TRUE.)
-
-        ! The time at which each layer was created. Layer n_layers_init+1 is laid
-        ! down at time_init; each subsequent layer at its entry in time_add.
-        n_init = els%par%n_layers_init
-        allocate(layer_time(els%par%n_layers))
-
-        layer_time(1:n_init) = MV
-        layer_time(n_init+1) = time
-        do k = 1, size(els%par%time_add)
-            layer_time(n_init+1+k) = els%par%time_add(k)
-        end do
-
-        call nc_write(filename,"layer_time",layer_time,dim1="layer", &
-                      units="years",long_name="Time at which the layer was laid down", &
-                      missing_value=MV)
-
-        deallocate(layer_time)
 
     end subroutine elsa_write_init
 
@@ -229,6 +222,14 @@ contains
         nl = els%par%n_layers
 
         call nc_write(filename,"time",time,dim1="time",start=[n],count=[1])
+
+        ! Deposition time of each layer, from the stored state. Rewritten every
+        ! step: a layer reads MV until the step it is laid down. Not time-resolved
+        ! -- a layer's t_dep never changes once set -- so the final file holds the
+        ! deposition time of every layer realised by the end of the run.
+        call nc_write(filename,"layer_time",els%now%t_dep,dim1="layer", &
+                      units="years",missing_value=MV, &
+                      long_name="Time at which the layer was laid down")
 
         call nc_write(filename,"n_top",els%now%n_top,dim1="time",start=[n],count=[1], &
                       long_name="Index of the topmost active layer")

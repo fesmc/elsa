@@ -130,8 +130,9 @@ contains
             call normalize_layers(els%now%d_iso,els%now%H_ice,els%now%n_top)
 
             ! One empty layer on top, to receive accumulation until the first
-            ! isochrone is laid down.
+            ! isochrone is laid down. It is laid down now, at time_init.
             els%now%n_top = els%now%n_top + 1
+            els%now%t_dep(els%now%n_top) = time
 
             els%now%time           = time
             els%now%i_add          = 1
@@ -364,9 +365,10 @@ contains
                 error stop 1
             end if
 
-            els%now%n_top                  = els%now%n_top + 1
+            els%now%n_top                    = els%now%n_top + 1
             els%now%d_iso(:,:,els%now%n_top) = 0.0_wp
-            els%now%i_add                  = els%now%i_add + 1
+            els%now%t_dep(els%now%n_top)     = els%par%time_add(els%now%i_add)
+            els%now%i_add                    = els%now%i_add + 1
 
         end do
 
