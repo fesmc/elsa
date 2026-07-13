@@ -27,13 +27,16 @@ contains
     ! Restart
     ! ======================================================================
     !
-    ! Everything needed to continue a run exactly. dsum_iso is derived from
+    ! The file carries the full state object, so it doubles as a single-slice
+    ! diagnostic snapshot. But only a subset is read back to continue a run:
+    ! d_iso, H_ice_prev, and the scalar bookkeeping. dsum_iso is derived from
     ! d_iso, and the velocities and mass balance are remapped from the host every
-    ! update, so none of them is stored.
+    ! update, so restoring them would have no effect -- see elsa_restart_read_state.
     !
-    ! d_iso and H_ice_prev are written in double precision, unlike the diagnostic
-    ! output in elsa_write_step: a restart that loses bits does not reproduce the
-    ! run it continues.
+    ! d_iso and H_ice_prev are written in double precision: they are read back, and
+    ! a restart that loses bits does not reproduce the run it continues. The other
+    ! fields are diagnostic only and never read back, so they are written single
+    ! precision like the output in elsa_write_step.
     !
     ! The isochrone schedule (time_add) travels in the restart rather than being
     ! regenerated from layer_resolution. Rebuilding it from the restart time would
@@ -58,6 +61,7 @@ contains
         call nc_write(filename,"time",         els%now%time,          dim1="one")
         call nc_write(filename,"n_top",        els%now%n_top,         dim1="one")
         call nc_write(filename,"i_add",        els%now%i_add,         dim1="one")
+        call nc_write(filename,"n_reseed",     els%now%n_reseed,      dim1="one")
         call nc_write(filename,"n_reseed_total",els%now%n_reseed_total,dim1="one")
         call nc_write(filename,"n_layers_init",els%par%n_layers_init, dim1="one")
 
@@ -66,10 +70,35 @@ contains
             call nc_write(filename,"time_add",els%par%time_add,dim1="isochrone",units="years")
         end if
 
+        ! -- read back to continue the run: double precision
         call nc_write(filename,"d_iso",els%now%d_iso, &
                       dim1="xc",dim2="yc",dim3="layer",units="m")
         call nc_write(filename,"H_ice_prev",els%now%H_ice_prev, &
                       dim1="xc",dim2="yc",units="m")
+
+        ! -- diagnostic only, never read back: single precision
+        call nc_write(filename,"dsum_iso",real(els%now%dsum_iso,sp), &
+                      dim1="xc",dim2="yc",dim3="layer",units="m", &
+                      long_name="Height of the layer top above the bed")
+        call nc_write(filename,"ux_iso",real(els%now%ux_iso,sp), &
+                      dim1="xc",dim2="yc",dim3="layer",units="m/yr", &
+                      long_name="Layer-mean velocity (x), acx nodes")
+        call nc_write(filename,"uy_iso",real(els%now%uy_iso,sp), &
+                      dim1="xc",dim2="yc",dim3="layer",units="m/yr", &
+                      long_name="Layer-mean velocity (y), acy nodes")
+        call nc_write(filename,"H_ice",real(els%now%H_ice,sp), &
+                      dim1="xc",dim2="yc",units="m", &
+                      long_name="Ice thickness on the elsa grid")
+        call nc_write(filename,"smb",real(els%now%smb,sp), &
+                      dim1="xc",dim2="yc",units="m/yr")
+        call nc_write(filename,"bmb",real(els%now%bmb,sp), &
+                      dim1="xc",dim2="yc",units="m/yr")
+        call nc_write(filename,"ux_lev",real(els%now%ux_lev,sp), &
+                      dim1="xc",dim2="yc",dim3="zeta",units="m/yr", &
+                      long_name="Host velocity (x), acx nodes, host sigma levels")
+        call nc_write(filename,"uy_lev",real(els%now%uy_lev,sp), &
+                      dim1="xc",dim2="yc",dim3="zeta",units="m/yr", &
+                      long_name="Host velocity (y), acy nodes, host sigma levels")
 
     end subroutine elsa_restart_write
 
