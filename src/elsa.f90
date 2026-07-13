@@ -23,7 +23,7 @@ module elsa
     use elsa_physics
     use elsa_interp
     use elsa_io
-    use nml, only : nml_read
+    use nml, only : nml_read, nml_validate
 
     implicit none
 
@@ -378,13 +378,22 @@ contains
         type(elsa_param_class), intent(inout) :: par
         character(len=*),       intent(in)    :: filename, group
 
-        call nml_read(filename,group,"n_layers_init",   par%n_layers_init)
-        call nml_read(filename,group,"layer_resolution",par%layer_resolution)
-        call nml_read(filename,group,"layer_file",      par%layer_file)
-        call nml_read(filename,group,"grid_factor",     par%grid_factor)
-        call nml_read(filename,group,"dt_coupling",     par%dt_coupling)
-        call nml_read(filename,group,"cfl",             par%cfl)
-        call nml_read(filename,group,"allow_pos_bmb",   par%allow_pos_bmb)
+        ! Defaults file (schema). The user group is aliased onto the canonical
+        ! "elsa" group; a run's namelist need only list overrides. Keep a synced
+        ! copy in the host's input/ dir (e.g. yelmo/input/). See input/elsa_defaults.nml.
+        character(len=*), parameter :: def_file  = "input/elsa_defaults.nml"
+        character(len=*), parameter :: def_group = "elsa"
+
+        ! Reject any user parameter that is not in the schema (catches typos)
+        call nml_validate(filename,def_file,group,defaults_group=def_group)
+
+        call nml_read(filename,group,"n_layers_init",   par%n_layers_init,   init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
+        call nml_read(filename,group,"layer_resolution",par%layer_resolution,init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
+        call nml_read(filename,group,"layer_file",      par%layer_file,      init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
+        call nml_read(filename,group,"grid_factor",     par%grid_factor,     init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
+        call nml_read(filename,group,"dt_coupling",     par%dt_coupling,     init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
+        call nml_read(filename,group,"cfl",             par%cfl,             init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
+        call nml_read(filename,group,"allow_pos_bmb",   par%allow_pos_bmb,   init=.TRUE.,defaults_file=def_file,defaults_group=def_group)
 
         if (par%n_layers_init .lt. 1) then
             write(*,*) "elsa_par_load:: Error: n_layers_init must be >= 1, got ", par%n_layers_init
