@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -39,10 +42,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-87aa3f3d30365e420552d067b3910e07.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4bc5be01c2d65b4ed28e24e5192a5bc4.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-e913f0b6503cdf3d29a396f382914efc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-7769c04541ead5cc9ef5ac528d4cd327.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -72,7 +75,7 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -188,7 +191,7 @@ window.Quarto = {
    
   <ul>
   <li><a href="#what-it-tests" id="toc-what-it-tests" class="nav-link active" data-scroll-target="#what-it-tests">What it tests</a></li>
-  <li><a href="#the-point-vertical-motion-is-emergent" id="toc-the-point-vertical-motion-is-emergent" class="nav-link" data-scroll-target="#the-point-vertical-motion-is-emergent">The point: vertical motion is emergent</a></li>
+  <li><a href="#vertical-motion-is-emergent" id="toc-vertical-motion-is-emergent" class="nav-link" data-scroll-target="#vertical-motion-is-emergent">Vertical motion is emergent</a></li>
   <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
   <li><a href="#restart-in-passing" id="toc-restart-in-passing" class="nav-link" data-scroll-target="#restart-in-passing">Restart, in passing</a></li>
   </ul>
@@ -219,15 +222,15 @@ window.Quarto = {
 
 <section id="what-it-tests" class="level2">
 <h2 class="anchored" data-anchor-id="what-it-tests">What it tests</h2>
-<p><code>test_column.x</code> is elsa’s end-to-end quantitative check: the whole pipeline — namelist, init, mass balance, normalization, layer insertion — driven at an ice divide where the answer is known in closed form.</p>
-<p>At a divide there is no horizontal flow. With constant ice thickness <span class="math inline">\(H\)</span> and constant accumulation <span class="math inline">\(a\)</span>, an isochrone laid down at the surface sinks under uniform vertical strain, and Nye’s steady solution puts it, after elapsed time <span class="math inline">\(\tau\)</span>, at a height above the bed of</p>
+<p><code>test_column.x</code> is elsa’s end-to-end quantitative check. The full pipeline — namelist, init, mass balance, normalization and layer insertion — is exercised at an ice divide, where the answer is known in closed form.</p>
+<p>At a divide there is no horizontal flow. For constant ice thickness <span class="math inline">\(H\)</span> and constant accumulation <span class="math inline">\(a\)</span>, an isochrone laid down at the surface sinks under uniform vertical strain. Nye’s steady-state solution places it, after elapsed time <span class="math inline">\(\tau\)</span>, at a height above the bed of</p>
 <p><span class="math display">\[
 z(\tau) = H\,\exp\!\left(-\frac{a\,\tau}{H}\right).
 \]</span></p>
 <p>Source: <a href="https://github.com/fesmc/elsa/blob/main/src/test_column.f90"><code>src/test_column.f90</code></a>. Run it with <code>make run-column</code>.</p>
 </section>
-<section id="the-point-vertical-motion-is-emergent" class="level2">
-<h2 class="anchored" data-anchor-id="the-point-vertical-motion-is-emergent">The point: vertical motion is emergent</h2>
+<section id="vertical-motion-is-emergent" class="level2">
+<h2 class="anchored" data-anchor-id="vertical-motion-is-emergent">Vertical motion is emergent</h2>
 <p>elsa never computes a vertical velocity. Each coupling step it adds <span class="math inline">\(a\,\Delta t\)</span> to the top layer and renormalizes the column onto <span class="math inline">\(H\)</span>, which multiplies every layer height by <span class="math inline">\(r = H/(H + a\,\Delta t)\)</span>. After <span class="math inline">\(n = \tau/\Delta t\)</span> steps,</p>
 <p><span class="math display">\[
 z = H\,r^{\,n}
@@ -235,7 +238,7 @@ z = H\,r^{\,n}
   \;\longrightarrow\; H\,\exp\!\left(-\frac{a\,\tau}{H}\right)
   \quad\text{as } \Delta t \to 0.
 \]</span></p>
-<p>So the vertical thinning is a <em>consequence</em> of the layer bookkeeping, not something imposed. The benchmark checks two separate things: that elsa lands on the <strong>discrete</strong> recursion <span class="math inline">\(H\,r^n\)</span> exactly (a statement about the code), and that this converges onto the <strong>analytic</strong> Nye profile at first order in the coupling period (a statement about the scheme).</p>
+<p>The vertical thinning is therefore a <em>consequence</em> of the layer bookkeeping, rather than something imposed. The benchmark checks two separate things: that elsa lands on the <strong>discrete</strong> recursion <span class="math inline">\(H\,r^n\)</span> exactly (a statement about the code), and that this converges onto the <strong>analytic</strong> Nye profile at first order in the coupling period (a statement about the scheme).</p>
 </section>
 <section id="results" class="level2">
 <h2 class="anchored" data-anchor-id="results">Results</h2>
@@ -245,19 +248,19 @@ z = H\,r^{\,n}
 <img src="../figures/column_nye.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-column-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: Left: modelled isochrone height against the Nye analytic solution and elsa’s own discrete recursion. Right: the residual — flat-zero against the discrete solution, and a smooth first-order bump against Nye that peaks mid-column and vanishes at both ends.
+Figure&nbsp;1: Left: modelled isochrone height, plotted against the Nye analytic solution and elsa’s own discrete recursion. Right: the residual — flat-zero against the discrete solution, and a smooth first-order bump against Nye that peaks mid-column and vanishes at both ends.
 </figcaption>
 </figure>
 </div>
 <ul>
 <li><strong>Against the discrete recursion: exact.</strong> All 20 isochrones land on <span class="math inline">\(H\,r^n\)</span> to a relative error of <span class="math inline">\(4.9\times10^{-15}\)</span> — machine precision on the in-memory double-precision state.</li>
-<li><strong>Against Nye: first-order.</strong> At <span class="math inline">\(\Delta t = 100\)</span> yr the maximum departure is 5.5 m out of 3000 m of ice, and halving <span class="math inline">\(\Delta t\)</span> halves it. The convergence ratios measured at <span class="math inline">\(\Delta t = 200, 100, 50\)</span> yr are 1.997 and 1.998, against a first-order expectation of 2.</li>
+<li><strong>Against Nye: first-order.</strong> At <span class="math inline">\(\Delta t = 100\)</span> yr the maximum departure is around 5.5 m out of 3000 m of ice, and halving <span class="math inline">\(\Delta t\)</span> halves this departure. The convergence ratios measured at <span class="math inline">\(\Delta t = 200, 100, 50\)</span> yr are 1.997 and 1.998, against a first-order expectation of 2.</li>
 </ul>
-<p>The shape of the residual in the right panel — zero at the surface, zero at the bed, a smooth bump in between — is the fingerprint of a discretization error, not a bug.</p>
+<p>The shape of the residual in the right panel — zero at the surface, zero at the bed, and a smooth bump in between — is consistent with a discretization error rather than a bug.</p>
 </section>
 <section id="restart-in-passing" class="level2">
 <h2 class="anchored" data-anchor-id="restart-in-passing">Restart, in passing</h2>
-<p>The same benchmark asserts that <code>elsa_end</code> followed by a second <code>elsa_init</code> on the same object succeeds. v2.0 freed only seven of its nine arrays, so the second init aborted on an already-allocated array — which is why v2.0 could not restart. The bit-identical restart round-trip is checked in <a href="../benchmarks/greenland.html">greenland</a>.</p>
+<p>The same benchmark asserts that <code>elsa_end</code> followed by a second <code>elsa_init</code> on the same object succeeds. v2.0 freed only seven of its nine arrays, so the second init aborted on an already-allocated array, which is why v2.0 could not restart. The bit-identical restart round-trip is checked in <a href="../benchmarks/greenland.html">greenland</a>.</p>
 
 
 </section>

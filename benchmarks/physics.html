@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -39,10 +42,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-87aa3f3d30365e420552d067b3910e07.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4bc5be01c2d65b4ed28e24e5192a5bc4.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-e913f0b6503cdf3d29a396f382914efc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-7769c04541ead5cc9ef5ac528d4cd327.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -72,7 +75,7 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -220,7 +223,7 @@ window.Quarto = {
 
 <section id="what-it-tests" class="level2">
 <h2 class="anchored" data-anchor-id="what-it-tests">What it tests</h2>
-<p><code>test_physics.x</code> exercises the kernels in <code>elsa_physics</code> directly, as pure array-in / array-out routines with no file, no state, and no derived type. It is the lowest level of the benchmark suite and the one that pins down the correctness of the advection scheme.</p>
+<p><code>test_physics.x</code> exercises the kernels in <code>elsa_physics</code> directly, as pure array-in / array-out routines, with no file, no state and no derived type. It is the lowest level of the benchmark suite, and the one that pins down the correctness of the advection scheme.</p>
 <p>Four flow fields advect a layer-thickness blob, and a fifth group checks the mass-balance bookkeeping.</p>
 <p>Source: <a href="https://github.com/fesmc/elsa/blob/main/src/test_physics.f90"><code>src/test_physics.f90</code></a>. Run it with <code>make run-physics</code>.</p>
 </section>
@@ -235,12 +238,12 @@ window.Quarto = {
 <p><span class="math display">\[
 F_{i+1/2} = \max(u_{i+1/2},0)\,d_i + \min(u_{i+1/2},0)\,d_{i+1}.
 \]</span></p>
-<p>The coupling period is sub-stepped so the outflow from every cell satisfies a CFL condition, which is the exact positivity condition for the explicit update. The scheme is then unconditionally stable, non-negative, and mass-conserving — see <a href="../design.html">Design</a> for the derivation.</p>
+<p>The coupling period is sub-stepped so that the outflow from every cell satisfies a CFL condition, which is the exact positivity condition for the explicit update. The scheme is then unconditionally stable, non-negative and mass-conserving. See <a href="../design.html">Design</a> for the derivation.</p>
 </section>
 <section id="the-v2.0-regression" class="level2">
 <h2 class="anchored" data-anchor-id="the-v2.0-regression">The v2.0 regression</h2>
-<p>The published v2.0 scheme (Rieckh et al.&nbsp;2024, Eqs. B5–B8) chooses the upwind direction for both x-faces from the sign of a single face velocity. In a convergent cell that puts a negative entry on the matrix diagonal, the implicit solve loses diagonal dominance, and layer thickness diverges. v2.0 masked this with three guards: a cap on the thickness change per step (Eq. B9), a fallback when the solution is non-finite, and a skip of all advection where <span class="math inline">\(|u| &lt; 0.1\ \mathrm{m/yr}\)</span>.</p>
-<p>The <strong>convergent flow</strong> and <strong>divergent flow</strong> cases are the regression test. They run at a raw (unsubstepped) CFL of ~976 — far outside any explicit stability limit — and check that the thickness field stays finite, non-negative and mass-conserving <strong>with no cap applied anywhere</strong>. If the scheme were still the v2.0 one, the layer thickness would be unbounded here.</p>
+<p>The published v2.0 scheme (Rieckh et al.&nbsp;2024, Eqs. B5–B8) chooses the upwind direction for both x-faces from the sign of a single face velocity. In a convergent cell this places a negative entry on the matrix diagonal; the implicit solve then loses diagonal dominance, and the layer thickness diverges. v2.0 masked this with three guards: a cap on the thickness change per step (Eq. B9), a fallback when the solution is non-finite, and a skip of all advection where <span class="math inline">\(|u| &lt; 0.1\)</span> m yr<span class="math inline">\(^{-1}\)</span>.</p>
+<p>The <strong>convergent flow</strong> and <strong>divergent flow</strong> cases serve as the regression test. They run at a raw (unsubstepped) CFL of around 976 — far outside any explicit stability limit — and check that the thickness field remains finite, non-negative and mass-conserving <strong>without any cap being applied</strong>. If the scheme were still the v2.0 one, the layer thickness would be unbounded here.</p>
 </section>
 <section id="results" class="level2">
 <h2 class="anchored" data-anchor-id="results">Results</h2>
@@ -265,15 +268,15 @@ F_{i+1/2} = \max(u_{i+1/2},0)\,d_i + \min(u_{i+1/2},0)\,d_{i+1}.
 
  layer bookkeeping (normalize / smb / bmb / reseed)
    17 checks, all exact to 1e-14</code></pre>
-<p>Two results are worth drawing out:</p>
+<p>Two results deserve comment:</p>
 <ul>
-<li><strong>Uniform flow transports the first moment exactly.</strong> First-order upwind diffuses the <em>shape</em> of the blob, but the centroid still moves by exactly <span class="math inline">\(u\,\Delta t\)</span> — here to <span class="math inline">\(5\times10^{-16}\)</span>. That is a property the scheme guarantees regardless of resolution.</li>
-<li><strong>Rotation retains 27% of the peak after a full revolution.</strong> First-order upwind is heavily diffusive; this number is reported, not asserted, and is the figure to beat if the spatial order is ever raised.</li>
+<li><strong>Uniform flow transports the first moment exactly.</strong> First-order upwind diffuses the <em>shape</em> of the blob, but the centroid still moves by exactly <span class="math inline">\(u\,\Delta t\)</span> — here to <span class="math inline">\(5\times10^{-16}\)</span>. This property is guaranteed by the scheme regardless of resolution.</li>
+<li><strong>Rotation retains 27% of the peak after a full revolution.</strong> First-order upwind is heavily diffusive. This value is reported rather than asserted, and is the figure to beat if the spatial order is ever raised.</li>
 </ul>
 </section>
 <section id="layer-bookkeeping" class="level2">
 <h2 class="anchored" data-anchor-id="layer-bookkeeping">Layer bookkeeping</h2>
-<p>The same test covers the mass-balance kernels: normalization onto the host ice thickness, surface accumulation and ablation eating the stack from the top, basal melt from the bottom, and the reseeding of a column the mass balance emptied that the host still has ice in (which lands at the bed — see <a href="../design.html">Design</a>). All seventeen checks are exact to <span class="math inline">\(10^{-14}\)</span>.</p>
+<p>The same test covers the mass-balance kernels: normalization onto the host ice thickness, surface accumulation and ablation eating the stack from the top, basal melt from the bottom, and the reseeding of a column that the mass balance has emptied but in which the host still has ice (which lands at the bed — see <a href="../design.html">Design</a>). All 17 checks are exact to <span class="math inline">\(10^{-14}\)</span>.</p>
 
 
 </section>

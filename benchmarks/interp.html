@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -39,10 +42,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-87aa3f3d30365e420552d067b3910e07.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4bc5be01c2d65b4ed28e24e5192a5bc4.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-e913f0b6503cdf3d29a396f382914efc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-7769c04541ead5cc9ef5ac528d4cd327.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -72,7 +75,7 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -218,7 +221,7 @@ window.Quarto = {
 
 <section id="what-it-tests" class="level2">
 <h2 class="anchored" data-anchor-id="what-it-tests">What it tests</h2>
-<p><code>test_interp.x</code> checks the maps in <code>elsa_interp</code> that carry the host model’s fields onto elsa’s grid. Every map is <em>separable</em> — the 2D weight is the outer product of a weight along x and a weight along y — and exact, and each is precomputed once at init and applied as a fixed stencil thereafter. So the benchmark asserts exactness properties, not tolerances.</p>
+<p><code>test_interp.x</code> checks the maps in <code>elsa_interp</code> that carry the host model’s fields onto elsa’s grid. Every map is <em>separable</em> — the 2D weight is the outer product of a weight along x and a weight along y — and exact. Each is precomputed once at init and applied as a fixed stencil thereafter. The benchmark therefore asserts exactness properties, rather than tolerances.</p>
 <p>Source: <a href="https://github.com/fesmc/elsa/blob/main/src/test_interp.f90"><code>src/test_interp.f90</code></a>. Run it with <code>make run-interp</code>.</p>
 </section>
 <section id="the-three-maps" class="level2">
@@ -254,7 +257,7 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-<p>Vertically, the host supplies velocity on <code>nz</code> sigma levels; elsa needs the <em>thickness-average</em> over each isochronal layer, which — since the profile is piecewise linear — integrates exactly.</p>
+<p>Vertically, the host supplies velocity on <code>nz</code> sigma levels. elsa requires the <em>thickness-average</em> over each isochronal layer, which — since the profile is piecewise linear — is integrated exactly.</p>
 </section>
 <section id="results" class="level2">
 <h2 class="anchored" data-anchor-id="results">Results</h2>
@@ -271,11 +274,11 @@ window.Quarto = {
    constant profile exact
    linear profile -&gt; layer midpoint value
    sum(u_k d_k) = exact integral   (err 1.7e-16)</code></pre>
-<p>Three things this establishes:</p>
+<p>Three things are established here:</p>
 <ul>
-<li><p><strong>Non-integer coarsening conserves mass.</strong> At <code>grid_factor = 2.5</code>, elsa’s grid tiles the host’s without an integer ratio, and total ice mass is preserved to <span class="math inline">\(3\times10^{-16}\)</span>. v2.0 required <code>grid_factor</code> to divide both <code>nx</code> and <code>ny</code>; it warned and continued otherwise, silently losing mass.</p></li>
-<li><p><strong>Staggering is a coordinate, not a code path.</strong> The bilinear map reproduces a linear field for both <code>"acx_acy"</code> and <code>"aa"</code> because <code>stagger</code> only shifts where the host’s velocity samples are taken from; nothing downstream branches on it. Any host grid — staggered or centred, any resolution ratio — reaches elsa’s faces through the same code.</p></li>
-<li><p><strong>The vertical average is exact and unbiased.</strong> For a linear profile the layer-mean equals the value at the layer midpoint, and the thickness-weighted sum equals the exact integral to <span class="math inline">\(2\times10^{-16}\)</span>. v2.0 sampled the layer’s <em>upper interface</em> instead, biasing every layer toward the faster ice above it — here by <span class="math inline">\(+1.13\ \mathrm{m/yr}\)</span> for the test profile.</p></li>
+<li><p><strong>Non-integer coarsening conserves mass.</strong> At <code>grid_factor = 2.5</code>, elsa’s grid tiles the host’s without an integer ratio, and the total ice mass is preserved to <span class="math inline">\(3\times10^{-16}\)</span>. v2.0 required <code>grid_factor</code> to divide both <code>nx</code> and <code>ny</code>; it warned and continued otherwise, and silently lost mass.</p></li>
+<li><p><strong>Staggering is a coordinate, rather than a code path.</strong> The bilinear map reproduces a linear field for both <code>"acx_acy"</code> and <code>"aa"</code>, since <code>stagger</code> only shifts where the host’s velocity samples are taken from and nothing downstream branches on it. Any host grid — staggered or centred, at any resolution ratio — reaches elsa’s faces through the same code.</p></li>
+<li><p><strong>The vertical average is exact and unbiased.</strong> For a linear profile the layer-mean equals the value at the layer midpoint, and the thickness-weighted sum equals the exact integral to <span class="math inline">\(2\times10^{-16}\)</span>. v2.0 instead sampled the layer’s <em>upper interface</em>, which biased every layer toward the faster ice above it — here by <span class="math inline">\(+1.13\)</span> m yr<span class="math inline">\(^{-1}\)</span> for the test profile.</p></li>
 </ul>
 
 

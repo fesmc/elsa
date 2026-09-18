@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -39,10 +42,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-87aa3f3d30365e420552d067b3910e07.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4bc5be01c2d65b4ed28e24e5192a5bc4.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-e913f0b6503cdf3d29a396f382914efc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-7769c04541ead5cc9ef5ac528d4cd327.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -72,7 +75,7 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -188,7 +191,7 @@ window.Quarto = {
    
   <ul>
   <li><a href="#what-it-tests" id="toc-what-it-tests" class="nav-link active" data-scroll-target="#what-it-tests">What it tests</a></li>
-  <li><a href="#staggering-in-practice" id="toc-staggering-in-practice" class="nav-link" data-scroll-target="#staggering-in-practice">Staggering, in practice</a></li>
+  <li><a href="#staggering-in-practice" id="toc-staggering-in-practice" class="nav-link" data-scroll-target="#staggering-in-practice">Staggering in practice</a></li>
   <li><a href="#what-is-checked" id="toc-what-is-checked" class="nav-link" data-scroll-target="#what-is-checked">What is checked</a></li>
   <li><a href="#the-output" id="toc-the-output" class="nav-link" data-scroll-target="#the-output">The output</a></li>
   <li><a href="#restart-is-bit-identical" id="toc-restart-is-bit-identical" class="nav-link" data-scroll-target="#restart-is-bit-identical">Restart is bit-identical</a></li>
@@ -221,24 +224,24 @@ window.Quarto = {
 
 <section id="what-it-tests" class="level2">
 <h2 class="anchored" data-anchor-id="what-it-tests">What it tests</h2>
-<p><code>test_greenland.x</code> runs elsa on a real ice sheet: the Greenland domain at 16 km, forced offline from a Yelmo restart (<code>data/initmip-grl-16km/yelmo_restart.nc</code>, the same file the <a href="https://github.com/fesmc/tracer">tracer</a> package uses, so the two schemes can be compared on identical host fields).</p>
-<p>The restart carries no spun-up isochrone field, so there is no known answer to compare against. This is a <strong>structural</strong> check — against a real velocity field, real staggering, real non-uniform sigma levels, and a real ice margin — rather than a comparison with a closed-form solution.</p>
+<p><code>test_greenland.x</code> runs elsa on a real ice sheet: the Greenland domain at 16 km, forced offline from a Yelmo restart (<code>data/initmip-grl-16km/yelmo_restart.nc</code>, the same file that the <a href="https://github.com/fesmc/tracer">tracer</a> package uses, so that the two schemes can be compared on identical host fields).</p>
+<p>The restart carries no spun-up isochrone field, so there is no known answer against which to compare. This is therefore a <strong>structural</strong> check — against a real velocity field, real staggering, real non-uniform sigma levels and a real ice margin — rather than a comparison with a closed-form solution.</p>
 <p>Source: <a href="https://github.com/fesmc/elsa/blob/main/src/test_greenland.f90"><code>src/test_greenland.f90</code></a>. Run it with <code>make run-greenland</code>; it writes <code>output/GRL-16KM/elsa.nc</code>.</p>
 </section>
 <section id="staggering-in-practice" class="level2">
-<h2 class="anchored" data-anchor-id="staggering-in-practice">Staggering, in practice</h2>
-<p>Yelmo writes <code>ux</code>/<code>uy</code> on staggered acx/acy nodes. elsa’s advection wants face velocities — which is exactly what acx/acy nodes are — so they are handed over as-is with <code>stagger = "acx_acy"</code> and nothing is destaggered. The <code>tracer</code> package reads the same file and <em>does</em> destagger to cell centres, because it wants cell-centred velocities. The contrast is the whole point of expressing staggering as a coordinate rather than a conversion.</p>
+<h2 class="anchored" data-anchor-id="staggering-in-practice">Staggering in practice</h2>
+<p>Yelmo writes <code>ux</code>/<code>uy</code> on staggered acx/acy nodes. elsa’s advection requires face velocities — which is exactly what acx/acy nodes are — so they are handed over as-is with <code>stagger = "acx_acy"</code>, and nothing is destaggered. The <code>tracer</code> package reads the same file and <em>does</em> destagger to cell centres, since it requires cell-centred velocities. This contrast is the motivation for expressing staggering as a coordinate rather than as a conversion.</p>
 </section>
 <section id="what-is-checked" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-checked">What is checked</h2>
-<p>Every update, on both a native (<code>grid_factor = 1</code>) and a coarsened (<code>grid_factor = 2.5</code>) run:</p>
+<p>At every update, on both a native (<code>grid_factor = 1</code>) and a coarsened (<code>grid_factor = 2.5</code>) run:</p>
 <ul>
-<li>layer thicknesses stay finite and non-negative;</li>
-<li>every column sums to the host’s ice thickness (closure error <span class="math inline">\(0\)</span> at <code>grid_factor = 1</code>, <span class="math inline">\(\sim10^{-15}\)</span> coarsened);</li>
+<li>layer thicknesses remain finite and non-negative;</li>
+<li>every column sums to the host’s ice thickness (closure error 0 at <code>grid_factor = 1</code>, and around <span class="math inline">\(10^{-15}\)</span> coarsened);</li>
 <li>ice-free columns carry no layers;</li>
-<li>isochrones stay ordered — younger ice sits higher, and none escapes the ice column;</li>
-<li>at <code>grid_factor = 1</code>, the conservative map reproduces the host ice thickness exactly and conserves volume;</li>
-<li>reseeding of emptied margin columns stays rare (a handful of thin cells per step, out of ~7000).</li>
+<li>isochrones remain ordered — younger ice sits higher, and none escapes the ice column;</li>
+<li>at <code>grid_factor = 1</code>, the conservative map reproduces the host ice thickness exactly, and volume is conserved;</li>
+<li>reseeding of emptied margin columns remains rare (a handful of thin cells per step, out of around 7000).</li>
 </ul>
 </section>
 <section id="the-output" class="level2">
@@ -249,22 +252,22 @@ window.Quarto = {
 <img src="../figures/greenland_isochrones.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-greenland-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: Left: the depth below the surface of the oldest isochrone, across the ice sheet. Right: the full layer stack along a transect, coloured by isochrone age, with the ice surface in black. The right panel is the view the isochronal scheme exists to produce — the layers a model would compare against radiostratigraphy.
+Figure&nbsp;1: Left: the depth below the surface of the oldest isochrone, across the ice sheet. Right: the full layer stack along a transect, coloured by isochrone age, with the ice surface in black. The right panel is the view that the isochronal scheme is designed to produce — the layers that a model would compare against radiostratigraphy.
 </figcaption>
 </figure>
 </div>
 </section>
 <section id="restart-is-bit-identical" class="level2">
 <h2 class="anchored" data-anchor-id="restart-is-bit-identical">Restart is bit-identical</h2>
-<p>The benchmark also runs the restart round-trip: a continuous run, and the same run stopped halfway, written to a restart file, and picked up again. The two end with</p>
+<p>The benchmark also runs the restart round-trip: a continuous run, and the same run stopped halfway, written to a restart file, and picked up again. The two runs end with</p>
 <p><span class="math display">\[
 \max_{i,j,k}\bigl|\,d^{\text{restart}}_{ijk} - d^{\text{continuous}}_{ijk}\,\bigr| = 0.
 \]</span></p>
-<p>Bit-identical, not merely close. That is the only check strong enough to catch a piece of state — <code>n_top</code>, the isochrone schedule, the previous-step ice thickness — being <em>reconstructed</em> rather than <em>carried</em>. See <a href="../design.html#restart">Design</a> for what the restart stores and why <code>d_iso</code> must be written in double precision.</p>
+<p>Bit-identical, and not merely close. This is the only check strong enough to catch a piece of state — <code>n_top</code>, the isochrone schedule, the previous-step ice thickness — being <em>reconstructed</em> rather than <em>carried</em>. See <a href="../design.html#restart">Design</a> for what the restart stores and why <code>d_iso</code> must be written in double precision.</p>
 </section>
 <section id="performance" class="level2">
 <h2 class="anchored" data-anchor-id="performance">Performance</h2>
-<p>At 16 km (19 186 cells, 20 layers) a 2000-year run spends 0.38 s in <code>elsa_update</code> on one core, and 0.15 s on eight. Cost is linear in simulated time and in layer count, and the total sub-step count does not depend on the coupling period. Extrapolating to the Rieckh et al.&nbsp;(2024) control configuration — 160 kyr, ~415 layers on average — is of order 20 minutes on a single core, against the ~24 h of ELSA time implied by that paper’s Fig. 9. (Different machines, so treat it as an order-of-magnitude comparison.)</p>
+<p>At 16 km (19 186 cells and 20 layers), a 2000-year run spends 0.38 s in <code>elsa_update</code> on one core, and 0.15 s on eight. The cost is linear in simulated time and in layer count, and the total sub-step count does not depend on the coupling period. Extrapolating to the Rieckh et al.&nbsp;(2024) control configuration — 160 kyr, and around 415 layers on average — gives a run time on the order of 20 minutes on a single core, against the roughly 24 h of ELSA time implied by that paper’s Fig. 9. The machines differ, so this should be treated as an order-of-magnitude comparison.</p>
 
 
 </section>
