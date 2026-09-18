@@ -6,21 +6,23 @@ toc: false
 
 **elsa** — the Englacial Layer Simulation Architecture — advects a stack of
 isochronal layers through an ice-sheet domain. Its vertical axis is *time*: each
-layer is bounded by two isochrones and never exchanges mass with its
-neighbours, so vertical numerical diffusion is eliminated by construction. elsa
-is driven by a host ice-sheet model, which supplies horizontal velocity, ice
-thickness, and surface and basal mass balance, and which elsa never modifies.
+layer is bounded by two isochrones, and mass does not exchange between
+neighbouring layers. Vertical numerical diffusion is therefore eliminated by
+construction. elsa is driven by a host ice-sheet model, which supplies the
+horizontal velocity, the ice thickness, and the surface and basal mass balance;
+elsa does not modify any of these fields.
 
-The method is that of [Born (2017)](https://doi.org/10.1017/jog.2016.111),
+The method follows [Born (2017)](https://doi.org/10.1017/jog.2016.111),
 [Born and Robinson (2021)](https://doi.org/10.5194/tc-15-4539-2021) and
-[Rieckh et al. (2024)](https://doi.org/10.5194/gmd-17-6987-2024). This
-implementation is a reimplementation of the Bergen ELSA v2.0, not a fork; see
-[Design](design.qmd) for where it departs from the published scheme, and why.
+[Rieckh et al. (2024)](https://doi.org/10.5194/gmd-17-6987-2024). This is a
+reimplementation of the Bergen ELSA v2.0 rather than a fork. See
+[Design](design.qmd) for the departures from the published scheme, and their
+motivation.
 
 ::: {.callout-note}
-This is a from-scratch reimplementation under active development. The library,
-its public API, NetCDF output, restart and the full benchmark suite are in
-place. The Yelmox coupling is being wired separately.
+This is a reimplementation from scratch and is under active development. The
+library, its public API, the NetCDF output, the restart and the full benchmark
+suite are all in place. The Yelmox coupling is being wired separately.
 :::
 
 ## The interface
@@ -39,12 +41,13 @@ call elsa_update(els,time,H_ice,ux,uy,smb,bmb)   ! every host timestep
 call elsa_end(els)
 ```
 
-`elsa_update` takes an absolute time, works out its own coupling interval,
-decides for itself whether an update is due, and keeps its own previous-step ice
-thickness — so the host calls it unconditionally and manages none of elsa's
-bookkeeping. Host fields may be single or double precision; elsa converts at the
-boundary. `stagger` declares where the host's velocity samples sit — `"acx_acy"`
-for staggered faces (Yelmo), `"aa"` for cell-centred.
+`elsa_update` receives an absolute time, computes its own coupling interval,
+decides internally whether an update is due, and stores its own previous-step
+ice thickness. The host therefore calls it unconditionally and manages none of
+elsa's internal state. Host fields may be supplied in single or double
+precision; elsa converts them at the boundary. The `stagger` argument declares
+where the host's velocity samples sit — `"acx_acy"` for staggered faces (as in
+Yelmo), or `"aa"` for cell-centred.
 
 ## What is new relative to v2.0
 
@@ -52,47 +55,50 @@ for staggered faces (Yelmo), `"aa"` for cell-centred.
 
 ::: {.pkg-card}
 ### Correct upwinding
-Each cell face is upwinded on its own velocity. v2.0 chose the direction for
-both x-faces from the sign of one, which put a negative entry on the matrix
-diagonal in convergent cells and made the solve diverge. Three stability guards
-existed only to mask this; all are deleted. See [physics](benchmarks/physics.qmd).
+Each cell face is upwinded on its own velocity. v2.0 selected the direction for
+both x-faces from the sign of one, which produced a negative entry on the
+matrix diagonal in convergent cells and caused the solve to diverge. Three
+stability guards existed only to mask this behaviour; all have been removed.
+See [physics](benchmarks/physics.qmd).
 :::
 
 ::: {.pkg-card}
 ### No linear solver
-The advection is explicit and sub-stepped, so there is no LIS and no system
-solve. fesm-utils is elsa's only dependency. v2.0 required LIS, and required you
-to build and locate it.
+The advection is now explicit and sub-stepped, so there is no LIS and no
+system solve. The only dependency of elsa is fesm-utils. v2.0 required LIS,
+which the user had to build and locate.
 :::
 
 ::: {.pkg-card}
 ### Robust interpolation
-Any host grid maps onto elsa's grid through one separable, exact stencil, built
-once at init. `grid_factor` may be any real ≥ 1, not just an integer divisor.
-See [interp](benchmarks/interp.qmd).
+Any host grid is mapped onto elsa's grid through one separable, exact stencil,
+which is built once at initialization. The parameter `grid_factor` may take any
+real value ≥ 1, and is no longer restricted to an integer divisor. See
+[interp](benchmarks/interp.qmd).
 :::
 
 ::: {.pkg-card}
 ### Restart
-A run stopped and restarted is bit-identical to the run that never stopped. v2.0
-could not restart at all. See [greenland](benchmarks/greenland.qmd).
+A run that is stopped and restarted is bit-identical to the run that never
+stopped. v2.0 could not restart at all. See
+[greenland](benchmarks/greenland.qmd).
 :::
 
 :::
 
 ## Benchmarks
 
-Every claim above is checked. `make check` runs the Fortran benchmarks, which
-assert structural properties and exit nonzero on failure; `make validate` then
-runs the Julia analysis, which checks the physics against closed-form answers
-and draws the figures.
+Every claim above is checked directly. `make check` runs the Fortran
+benchmarks, which assert structural properties and exit non-zero on failure;
+`make validate` then runs the Julia analysis, which checks the physics against
+closed-form solutions and produces the figures.
 
 | Benchmark | What it establishes |
 |---|---|
 | [physics](benchmarks/physics.qmd) | advection is stable, positive and mass-conserving at any CFL |
 | [interp](benchmarks/interp.qmd) | the grid maps are exact |
 | [column](benchmarks/column.qmd) | isochrones follow the Nye analytic solution |
-| [greenland](benchmarks/greenland.qmd) | it runs on a real 3D ice sheet, and restarts exactly |
+| [greenland](benchmarks/greenland.qmd) | elsa runs on a real 3D ice sheet, and restarts exactly |
 
 ## Install
 

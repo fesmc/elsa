@@ -6,9 +6,9 @@ subtitle: "Advection and layer kernels — test_physics.x"
 ## What it tests
 
 `test_physics.x` exercises the kernels in `elsa_physics` directly, as pure
-array-in / array-out routines with no file, no state, and no derived type. It is
-the lowest level of the benchmark suite and the one that pins down the
-correctness of the advection scheme.
+array-in / array-out routines, with no file, no state and no derived type.
+It is the lowest level of the benchmark suite, and the one that pins down
+the correctness of the advection scheme.
 
 Four flow fields advect a layer-thickness blob, and a fifth group checks the
 mass-balance bookkeeping.
@@ -25,33 +25,34 @@ $$
                                 -\frac{\partial (v\,d)}{\partial y},
 $$
 
-discretized explicitly, upstream in space, with each cell face upwinded on **its
-own** velocity:
+discretized explicitly, upstream in space, with each cell face upwinded on
+**its own** velocity:
 
 $$
 F_{i+1/2} = \max(u_{i+1/2},0)\,d_i + \min(u_{i+1/2},0)\,d_{i+1}.
 $$
 
-The coupling period is sub-stepped so the outflow from every cell satisfies a
-CFL condition, which is the exact positivity condition for the explicit update.
-The scheme is then unconditionally stable, non-negative, and mass-conserving —
-see [Design](../design.qmd) for the derivation.
+The coupling period is sub-stepped so that the outflow from every cell
+satisfies a CFL condition, which is the exact positivity condition for the
+explicit update. The scheme is then unconditionally stable, non-negative
+and mass-conserving. See [Design](../design.qmd) for the derivation.
 
 ## The v2.0 regression
 
-The published v2.0 scheme (Rieckh et al. 2024, Eqs. B5–B8) chooses the upwind
-direction for both x-faces from the sign of a single face velocity. In a
-convergent cell that puts a negative entry on the matrix diagonal, the implicit
-solve loses diagonal dominance, and layer thickness diverges. v2.0 masked this
-with three guards: a cap on the thickness change per step (Eq. B9), a fallback
-when the solution is non-finite, and a skip of all advection where
-$|u| < 0.1\ \mathrm{m/yr}$.
+The published v2.0 scheme (Rieckh et al. 2024, Eqs. B5–B8) chooses the
+upwind direction for both x-faces from the sign of a single face velocity.
+In a convergent cell this places a negative entry on the matrix diagonal;
+the implicit solve then loses diagonal dominance, and the layer thickness
+diverges. v2.0 masked this with three guards: a cap on the thickness change
+per step (Eq. B9), a fallback when the solution is non-finite, and a skip
+of all advection where $|u| < 0.1$ m yr$^{-1}$.
 
-The **convergent flow** and **divergent flow** cases are the regression test.
-They run at a raw (unsubstepped) CFL of ~976 — far outside any explicit
-stability limit — and check that the thickness field stays finite, non-negative
-and mass-conserving **with no cap applied anywhere**. If the scheme were still
-the v2.0 one, the layer thickness would be unbounded here.
+The **convergent flow** and **divergent flow** cases serve as the
+regression test. They run at a raw (unsubstepped) CFL of around 976 — far
+outside any explicit stability limit — and check that the thickness field
+remains finite, non-negative and mass-conserving **without any cap being
+applied**. If the scheme were still the v2.0 one, the layer thickness would
+be unbounded here.
 
 ## Results
 
@@ -79,20 +80,22 @@ the v2.0 one, the layer thickness would be unbounded here.
    17 checks, all exact to 1e-14
 ```
 
-Two results are worth drawing out:
+Two results deserve comment:
 
 - **Uniform flow transports the first moment exactly.** First-order upwind
-  diffuses the *shape* of the blob, but the centroid still moves by exactly
-  $u\,\Delta t$ — here to $5\times10^{-16}$. That is a property the scheme
-  guarantees regardless of resolution.
-- **Rotation retains 27% of the peak after a full revolution.** First-order
-  upwind is heavily diffusive; this number is reported, not asserted, and is the
-  figure to beat if the spatial order is ever raised.
+  diffuses the *shape* of the blob, but the centroid still moves by
+  exactly $u\,\Delta t$ — here to $5\times10^{-16}$. This property is
+  guaranteed by the scheme regardless of resolution.
+- **Rotation retains 27% of the peak after a full revolution.**
+  First-order upwind is heavily diffusive. This value is reported rather
+  than asserted, and is the figure to beat if the spatial order is ever
+  raised.
 
 ## Layer bookkeeping
 
-The same test covers the mass-balance kernels: normalization onto the host ice
-thickness, surface accumulation and ablation eating the stack from the top,
-basal melt from the bottom, and the reseeding of a column the mass balance
-emptied that the host still has ice in (which lands at the bed — see
-[Design](../design.qmd)). All seventeen checks are exact to $10^{-14}$.
+The same test covers the mass-balance kernels: normalization onto the host
+ice thickness, surface accumulation and ablation eating the stack from the
+top, basal melt from the bottom, and the reseeding of a column that the
+mass balance has emptied but in which the host still has ice (which lands
+at the bed — see [Design](../design.qmd)). All 17 checks are exact to
+$10^{-14}$.
