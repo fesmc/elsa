@@ -3,6 +3,11 @@ project:
   output-dir: _site
   render:
     - "index.qmd"
+    - "guide.qmd"
+    - "parameters.qmd"
+    - "output.qmd"
+    - "api.qmd"
+    - "yelmo.qmd"
     - "design.qmd"
     - "benchmarks/*.qmd"
 
@@ -19,6 +24,18 @@ website:
     left:
       - text: "Home"
         href: index.qmd
+      - text: "User guide"
+        href: guide.qmd
+      - text: "Reference"
+        menu:
+          - text: "Parameters"
+            href: parameters.qmd
+          - text: "Output and restart files"
+            href: output.qmd
+          - text: "API"
+            href: api.qmd
+      - text: "Yelmo coupling"
+        href: yelmo.qmd
       - text: "Design"
         href: design.qmd
       - text: "Benchmarks"

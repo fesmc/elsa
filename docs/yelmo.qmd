@@ -1,0 +1,109 @@
+---
+title: "Yelmo coupling"
+subtitle: "elsa as the layer backend of Yelmo's passive-tracer subsystem"
+---
+
+[Yelmo](https://github.com/fesmc/yelmo) drives elsa through its passive-tracer
+subsystem `ytrc` (`src/yelmo_tracers.f90`). `ytrc` can run three backends side
+by side: an Eulerian age tracer, the Lagrangian particle model
+[tracer](https://github.com/fesmc/tracer), and elsa. Each backend fills its own
+deposition-time field on Yelmo's sigma grid, and one of them is designated as
+the authoritative source. This page describes the elsa side of that coupling
+as it stands in Yelmo. The Yelmo documentation remains the reference for
+`ytrc` itself.
+
+## Build
+
+Yelmo expects an elsa checkout (or a link to one) at `yelmo/elsa`. Its
+Makefile builds `libelsa.a` in that checkout through the `elsa-static` target,
+passing on the `openmp` setting, and links it ahead of fesm-utils. Yelmox
+reaches the same checkout at `yelmo/elsa`. No separate installation step is
+needed once the checkout is in place.
+
+Yelmo also carries a copy of the defaults file at `yelmo/input/elsa_defaults.nml`,
+since elsa reads this file by a path relative to the run directory (see the
+[user guide](guide.qmd#the-namelist-and-its-defaults-file)). The copy must be
+updated whenever a parameter is added to or removed from elsa. Otherwise
+`elsa_init` stops on the first parameter that the copy does not declare.
+
+## Parameters
+
+The coupling is controlled by the `ytrc` group of the Yelmo namelist.
+
+```fortran
+&ytrc
+    use_elsa        = True
+    t_dep_source    = "elsa"         ! "euler", "trc" or "elsa"
+    time_end        = 0.0            ! [yr] end of the experiment
+    elsa_nml        = "par/elsa.nml"
+    elsa_group      = "elsa"
+/
+```
+
+| Parameter | Content |
+|---|---|
+| `use_elsa` | runs the elsa backend |
+| `t_dep_source` | the backend that fills the authoritative `t_dep` field |
+| `time_end` | passed to `elsa_init` to size the layer stack |
+| `elsa_nml`, `elsa_group` | the file and the group from which elsa reads its own parameters |
+
+Two settings need attention. First, `time_end` defaults to 0 and must be set
+to the end time of the experiment, on Yelmo's time axis in years. If it is not
+later than the initial time, elsa schedules no isochrone and the whole
+accumulation of the run ends up in a single layer. Second, the elsa group must
+keep `grid_factor = 1`. Yelmo checks this at init and stops otherwise, since
+the mapping described below is done column by column on a shared grid.
+
+## What Yelmo passes
+
+At init, Yelmo passes its cell-centre axes, its `zeta_aa` levels and the ice
+thickness, with `stagger = "acx_acy"`. At every Yelmo time step it calls
+
+```fortran
+call elsa_update(trc%elsa,time,tpo%now%H_ice,dyn%now%ux,dyn%now%uy, &
+                 tpo%now%smb,tpo%now%bmb)
+```
+
+with the arguments converted to double precision. The velocities are Yelmo's
+native three-dimensional `ux` and `uy` on the acx and acy nodes, so nothing is
+destaggered. elsa decides internally whether an update is due, according to
+`dt_coupling`.
+
+## The `t_dep_elsa` field
+
+After each update, Yelmo maps the layer stack onto its sigma grid as a
+deposition-time field `t_dep_elsa(xc,yc,zeta)`. For each column, the layer
+interfaces from the top of the initialization layers to the surface define a
+set of knots in height, and the corresponding deposition times define the
+knots in time. The deposition time at each sigma level is then interpolated
+linearly between the knots.
+
+Two conventions of this mapping should be known. The surface knot carries the
+time of the last elsa update. All ice below the oldest isochrone, i.e., within
+the initialization layers, is assigned the initial time of elsa, since its
+true age is unknown. The field is thus a lower bound on age in that part of
+the column.
+
+If `t_dep_source = "elsa"`, `t_dep_elsa` is copied to the authoritative
+`t_dep` field, from which Yelmo diagnoses the depth of the isochrones listed
+in `time_iso` (`depth_iso`). Both `t_dep_elsa` and `depth_iso` are available
+as Yelmo output variables.
+
+## Restart
+
+Yelmo writes elsa's restart as a sidecar file next to its own restart file,
+with `_elsa` inserted before the extension (e.g., `yelmo_restart.nc` is
+accompanied by `yelmo_restart_elsa.nc`). On a restarted run, Yelmo derives the
+same sidecar name from its restart path and passes it to `elsa_init`.
+
+The rules given in the [user guide](guide.qmd#restart) apply. In particular,
+the layer stack of a restarted run is the one sized by `time_end` in the
+original run. An experiment that is run in several restarted segments must
+therefore set `time_end` to the end of the last segment from the beginning.
+
+## Native elsa output
+
+The `t_dep_elsa` field is a diagnostic on Yelmo's grid. The layer stack itself
+lives in `ylmo%trc%elsa`, and can be written in elsa's own format with
+`elsa_write_init` and `elsa_write_step` from the driver program (see
+[Output](output.qmd)).

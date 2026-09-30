@@ -1,0 +1,133 @@
+---
+title: "Output"
+subtitle: "The output and restart files, and how to read isochrones from them"
+---
+
+elsa writes two kinds of NetCDF file through `ncio`: a time-resolved output
+file, and a restart file that holds one instant. Both live on elsa's own
+grid, which differs from the host grid if `grid_factor` is not 1.
+
+## The layer convention
+
+The vertical axis of elsa is the layer index, and reading the files requires
+the following convention.
+
+- Layer 1 is at the bed. Layer `n_top` is the topmost active layer, which is
+  the one currently receiving accumulation. Layers above `n_top` have been
+  allocated but not yet laid down, and hold zero thickness.
+- `d_iso(i,j,k)` is the thickness of layer `k`. `dsum_iso(i,j,k)` is the
+  height of the **top** of layer `k` above the bed, so that
+  `dsum_iso(i,j,n_top)` is the ice thickness.
+- The deposition time of layer `k` (`t_dep` in the state and in the restart
+  file, `layer_time` in the output file) is the time at which the layer was
+  opened. It is the age label of the isochrone at the **base** of layer `k`.
+  The ice inside layer `k` was deposited between `layer_time(k)` and
+  `layer_time(k+1)`.
+- The initialization layers, `1` to `n_layers_init`, carry the missing value
+  $-9999$ as deposition time, as do the layers above `n_top`. The missing
+  value is written as a plain number and not as a `_FillValue` attribute.
+
+The height above the bed of the isochrone deposited at `layer_time(k)` is
+therefore `dsum_iso(i,j,k-1)`, and its depth below the surface is
+`H_ice(i,j) - dsum_iso(i,j,k-1)`. The oldest dated isochrone is the base of
+layer `n_layers_init + 1`, which is the ice surface at the initial time.
+
+## The output file
+
+`elsa_write_init` creates the file and its axes, and each call to
+`elsa_write_step` appends one time slice.
+
+| Dimension | Size | Units | Content |
+|---|---|---|---|
+| `xc`, `yc` | elsa grid | m | cell-centre coordinates |
+| `layer` | `n_layers` | 1 | layer index, 1 at the bed |
+| `time` | unlimited | years | model time of each slice |
+
+| Variable | Dimensions | Units | Content |
+|---|---|---|---|
+| `layer_time` | `layer` | years | deposition time of each layer |
+| `n_top` | `time` | 1 | index of the topmost active layer |
+| `H_ice` | `xc, yc, time` | m | ice thickness on elsa's grid |
+| `d_iso` | `xc, yc, layer, time` | m | layer thickness |
+| `dsum_iso` | `xc, yc, layer, time` | m | height of the layer top above the bed |
+| `ux_iso` | `xc, yc, layer, time` | m yr$^{-1}$ | layer-mean velocity in x, on acx faces |
+| `uy_iso` | `xc, yc, layer, time` | m yr$^{-1}$ | layer-mean velocity in y, on acy faces |
+
+Three properties of this file should be kept in mind.
+
+First, `layer_time` has no time dimension. It is rewritten at every step from
+the state, so the file always holds the deposition times of the layers laid
+down so far. A slice at an earlier time must be read together with its own
+`n_top`, since layers above it did not yet exist at that time.
+
+Second, the three-dimensional fields are written in single precision, since
+they dominate the file size. At 3000 m of ice this limits the resolution of
+`dsum_iso` to around $2 \times 10^{-4}$ m, which is irrelevant for analysis
+but means that the output file cannot be used to restart.
+
+Third, the velocities are located on elsa's staggered faces, not at the cell
+centres. `ux_iso(i,j,k)` sits at `xc(i) + dx/2`. The last face in each
+direction carries zero flux and is written as zero.
+
+Every slice holds all `n_layers` layers, including those not yet laid down.
+A long run with many layers and frequent output therefore produces a large
+file, and the output interval should be chosen accordingly.
+
+## The restart file
+
+`elsa_restart_write` writes the complete state at one instant. The file also
+serves as a diagnostic snapshot, but only part of it is read back.
+
+| Variable | Dimensions | Precision | Read back |
+|---|---|---|---|
+| `time` | `one` | double | yes |
+| `n_top`, `i_add` | `one` | integer | yes |
+| `n_reseed_total` | `one` | integer | yes |
+| `n_reseed` | `one` | integer | no |
+| `n_layers_init` | `one` | integer | yes |
+| `time_add` | `isochrone` | double | yes |
+| `d_iso` | `xc, yc, layer` | double | yes |
+| `H_ice_prev` | `xc, yc` | double | yes |
+| `t_dep` | `layer` | double | yes |
+| `dsum_iso`, `ux_iso`, `uy_iso` | `xc, yc, layer` | single | no |
+| `H_ice`, `smb`, `bmb` | `xc, yc` | single | no |
+| `ux_lev`, `uy_lev` | `xc, yc, zeta` | single | no |
+
+The axes `xc`, `yc` and `zeta` are read back as well, and are compared with
+the current grid. `time_add` is the full isochrone schedule and `i_add` the
+index of its next entry. `time_add` is absent if no isochrone was scheduled.
+The reasons for carrying each item are given under
+[Design](design.qmd#restart).
+
+## Reading isochrones
+
+The Julia helpers in `analysis/elsa_analysis.jl` implement the convention
+above. `ElsaRun(path)` opens an output file and converts the missing
+deposition times to `NaN`, `isochrone_layers` returns the layers that have a
+dated base, and `isochrone_height` returns the ages and the heights of all
+isochrones in one column at one time index.
+
+The depth of one isochrone can also be obtained directly. The following
+example extracts the depth below the surface of the isochrone that was laid
+down at `t_iso`, at the last time slice.
+
+```julia
+using NCDatasets
+
+ds   = NCDataset("output/GRL-16KM/elsa.nc")
+lt   = ds["layer_time"][:]
+it   = length(ds["time"])
+H    = ds["H_ice"][:, :, it]
+dsum = ds["dsum_iso"][:, :, :, it]
+
+t_iso = 1000.0
+k     = findfirst(==(t_iso), lt)       # the layer whose base is this isochrone
+
+depth = H .- dsum[:, :, k-1]
+depth[H .<= 0] .= NaN
+```
+
+The age of this isochrone at time `t` is `t - t_iso`. A comparison with
+observed radiostratigraphy requires the depth of a given age, so the
+isochrone schedule should contain the dated horizons of interest, either
+through a suitable `layer_resolution` or through a `layer_file`.

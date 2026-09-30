@@ -4,8 +4,7 @@
 # the order: compiler -> machine -> netCDF -> common). References FFLAGS /
 # FFLAGS_OPENMP (compiler) and LIB_NC (machine or auto-detected netCDF).
 
-# fesm-utils provides the ncio, nml, staggering and coords modules that elsa
-# uses. elsa carries no netCDF calls of its own, so INC_NC is not needed at
+# fesm-utils provides the ncio and nml modules that elsa uses. elsa carries no netCDF calls of its own, so INC_NC is not needed at
 # compile time; only LIB_NC at link time, via ncio inside libfesmutils.
 #
 # This is elsa's only dependency. The advection is an explicit sub-stepped

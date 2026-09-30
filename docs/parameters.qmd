@@ -1,0 +1,141 @@
+---
+title: "Parameters"
+subtitle: "The elsa namelist group"
+---
+
+elsa reads seven parameters from one namelist group. The group name is chosen
+by the caller of `elsa_init`, so that one file can hold several
+configurations. The defaults below are those of `input/elsa_defaults.nml`,
+which is both the fallback for any omitted parameter and the schema against
+which the user group is validated (see the
+[user guide](guide.qmd#the-namelist-and-its-defaults-file)).
+
+```fortran
+&elsa
+    n_layers_init    = 10          ! [1]  initialization layers
+    layer_resolution = 200.0       ! [yr] add an isochrone this often
+    layer_file       = "None"      ! [-]  or an explicit list of isochrone times
+    grid_factor      = 1.0         ! [1]  coarsen the host grid by this factor
+    dt_coupling      = 50.0        ! [yr] elsa update interval
+    cfl              = 0.9         ! [1]  advection sub-step target
+    allow_pos_bmb    = False       ! [-]  let freeze-on thicken the bottom layer
+/
+```
+
+## Reference
+
+| Parameter | Type | Default | Valid range |
+|---|---|---|---|
+| `n_layers_init` | integer | 10 | $\geq 1$ |
+| `layer_resolution` | real, yr | 200 | $> 0$, or 0 to use `layer_file` |
+| `layer_file` | string | `"None"` | a path, or `"None"` to use `layer_resolution` |
+| `grid_factor` | real | 1 | $\geq 1$ |
+| `dt_coupling` | real, yr | 50 | $> 0$ |
+| `cfl` | real | 0.9 | $(0, 1]$ |
+| `allow_pos_bmb` | logical | false | |
+
+Values outside the valid range stop the program at `elsa_init`.
+
+### `n_layers_init`
+
+The number of equal-thickness layers into which each ice column is divided at
+a cold start. These layers carry no age. They only resolve the vertical
+variation of the horizontal velocity within the ice that was present at the
+initial time, so that the deep initial ice is advected with the slow
+near-bed velocity rather than with the column mean. Basal melt removes these
+layers first, and basal freeze-on is added to the lowest one.
+
+### `layer_resolution` and `layer_file`
+
+Exactly one of the two defines the isochrone schedule. Setting both, or
+neither, is an error.
+
+With `layer_resolution`, an isochrone is laid down every `layer_resolution`
+years after the initial time, up to but excluding `time_end`. The number of
+scheduled isochrones is
+$\lceil (t_\mathrm{end} - t_\mathrm{init})/\mathrm{layer\_resolution} \rceil - 1$.
+
+With `layer_file`, the schedule is read from a text file with one isochrone
+time per line, in years, on the same time axis as the host. Blank lines are
+skipped. The times must be strictly increasing and must lie strictly between
+the initial time and `time_end`. This option allows the layers to be aligned
+with dated radiostratigraphic horizons.
+
+In both cases the surface at the initial time is an isochrone as well, so the
+number of dated isochrones is one more than the number of scheduled ones. The
+total number of layers allocated is `n_layers_init` plus the number of
+scheduled isochrones plus one.
+
+The memory and the run time of elsa both scale linearly with the number of
+layers. Each layer holds four double-precision fields on elsa's grid (`d_iso`,
+`dsum_iso`, `ux_iso` and `uy_iso`). At 16 km over Greenland (106 × 181 cells),
+1000 layers thus need around 0.6 GB.
+
+### `grid_factor`
+
+elsa's grid is the host grid coarsened by this factor, which is a real number
+and need not be an integer. Scalar fields are remapped conservatively and the
+velocities bilinearly (see [interp](benchmarks/interp.qmd)). The cost of the
+advection scales roughly with the inverse cube of the grid spacing, since the
+number of substeps grows as the cells shrink, so `grid_factor` is the most
+effective lever on run time.
+
+Two restrictions apply. A non-integer factor can leave a strip of host cells
+uncovered at the high edge of the domain (see the
+[limitations](guide.qmd#limitations)). The Yelmo coupling currently requires
+`grid_factor = 1` (see [Yelmo coupling](yelmo.qmd)).
+
+### `dt_coupling`
+
+The interval between elsa updates. `elsa_update` returns without doing
+anything until this much time has elapsed since the last update.
+
+The vertical thinning of the layers converges at first order in
+`dt_coupling`. At an ice divide with 3000 m of ice and an accumulation of
+0.3 m yr$^{-1}$, the maximum departure from the Nye solution is around
+5.5 m at `dt_coupling = 100` yr, and it halves when the period is halved (see
+[column](benchmarks/column.qmd)).
+
+A shorter coupling period does not increase the cost of the advection, since
+the number of substeps is set by the CFL condition over the simulated time.
+It does increase the cost of the horizontal maps and of the vertical velocity
+average, which are computed once per update. A longer period also increases
+the number of margin columns in which the ablation over one period exceeds
+the ice thickness (see [Design](design.qmd#emptied-columns)). In practice,
+`dt_coupling` should be no longer than `layer_resolution`, so that every
+layer receives accumulation.
+
+### `cfl`
+
+The target for the explicit substep. For each layer and each update, the
+substep is chosen so that the outflow from every cell over one substep does
+not exceed the fraction `cfl` of the cell's content. Any value in $(0, 1]$
+keeps the layer thickness non-negative and conserves mass. Lower values
+increase the number of substeps proportionally, and with a first-order upwind
+scheme they also increase the numerical diffusion slightly. There is thus
+little reason to depart from the default.
+
+### `allow_pos_bmb`
+
+Controls the treatment of basal freeze-on (`bmb > 0`). If true, the frozen-on
+ice is added to the lowest layer. If false, it is not added to any layer, and
+the subsequent normalization onto the host ice thickness distributes the
+corresponding thickening over the whole column in proportion to the layer
+thicknesses. Basal melt (`bmb < 0`) is always removed from the bottom of the
+column upward, independently of this switch.
+
+## Fixed constants
+
+Three constants are set in the source rather than in the namelist.
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `H_ICE_MIN` | $10^{-6}$ m | a column thinner than this is treated as ice-free |
+| `MV` | $-9999$ | missing value, used for the deposition time of undated layers |
+| `TIME_TOL` | $10^{-6}$ | relative slack when comparing model times |
+
+## Example configurations
+
+The benchmark namelists in `par/` are working examples. `par/test_greenland.nml`
+holds a native-resolution group and a group with `grid_factor = 2.5`.
+`par/test_column.nml` holds four groups that differ only in `dt_coupling`.

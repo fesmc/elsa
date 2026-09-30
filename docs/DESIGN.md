@@ -176,7 +176,7 @@ period has elapsed. When it fires, the sequence is:
    Relative layer thicknesses are unchanged.
 8. Lay down any isochrone whose time has been reached.
 
-Steps 2 and 6 are where elsa's vertical motion originates. elsa never computes
+Steps 3 and 7 are where elsa's vertical motion originates. elsa never computes
 a vertical velocity: adding accumulation on top and renormalizing the column
 multiplies every layer height by $H/(H + a \cdot dt)$, which in the limit
 $dt \to 0$ is Nye's uniform vertical strain. `test_column.x` asserts both the
@@ -317,8 +317,10 @@ branches on where the host's velocities were originally located.
 
 Internally, `wp = dp`. Layer thicknesses are summed over a stack of order
 $10^3$ layers, and are renormalized against the host ice thickness every
-coupling period across $O(10^5)$ yr. Run time is dominated by the linear
-solve rather than by array traffic, so the wider type is nearly free.
+coupling period across $O(10^5)$ yr. The restart round-trip is also asserted
+to be bit-identical, which a single-precision state would make harder to
+interpret. The cost of the wider type is a doubling of the memory of the layer
+arrays, which is acceptable for a stack of this size.
 
 Host fields are accepted as `real(sp)` or `real(dp)` through generic
 interfaces and converted at the boundary, so the host never casts. Yelmo's
@@ -326,18 +328,20 @@ interfaces and converted at the boundary, so the host never casts. Yelmo's
 
 ## Dependencies
 
-  - **fesm-utils** — `ncio`, `nml`, `staggering`, `coords` (`interp1D`,
-    `interp2D`, `conservative`). Nothing is vendored that fesm-utils already
-    provides.
-  - **LIS** — vendored and built by fesm-utils, so elsa needs no system-wide
-    install. Sources that `#include "lisf.h"` are named `.F90` so that
-    gfortran and ifx both preprocess them without a compiler-specific flag.
+  - **fesm-utils** — `ncio` for NetCDF input and output, and `nml` for the
+    namelist (`nml_read`, `nml_validate`). These are the only two modules
+    that elsa uses. NetCDF itself enters only at link time, through `ncio`.
+  - **LIS** is not a dependency. The advection is explicit, so no linear
+    system is assembled or solved (see the time discretization above). The
+    `coords` and `staggering` modules of fesm-utils are not used either (see
+    "Why not coords").
 
 ## Deliberate omissions
 
   - **The dye tracer** (`tracer_iso`) is not carried over. In v2.0 it was
     passed unallocated into the advection routine whenever `use_dye_tracer`
-    was false. It will return as a tested feature with its own benchmark.
+    was false. It is not implemented here. If it returns, it should do so as
+    a tested feature with its own benchmark.
   - **`misc_1`**, a debug array written to output, is deleted.
   - **Restart** is new. v2.0 could not restart at all: `elsa_dealloc` freed
     seven of the nine arrays that `elsa_init` allocates, so a second
@@ -345,19 +349,26 @@ interfaces and converted at the boundary, so the host never casts. Yelmo's
 
 ## Restart
 
-`elsa_restart_write` stores only what cannot be reconstructed: `d_iso`,
-`H_ice_prev`, `time`, `n_top`, `i_add`, and the isochrone schedule
+`elsa_restart_write` writes the full state object, so that the file also
+serves as a single-slice diagnostic snapshot. Only the part that cannot be
+reconstructed is read back: `d_iso`, `H_ice_prev`, `t_dep`, `time`, `n_top`,
+`i_add`, `n_reseed_total`, `n_layers_init`, and the isochrone schedule
 `time_add`. `dsum_iso` is derived from `d_iso`, and the velocities and mass
-balance are remapped from the host on every update.
+balance are remapped from the host on every update, so restoring them would
+have no effect.
 
-Two details matter, and the round-trip test would fail without either:
+Three details matter, and the round-trip test would fail without the first
+two:
 
-  - `d_iso` and `H_ice_prev` are written in **double** precision, unlike the
-    diagnostic output of `elsa_write_step`, which is single. A restart that
-    loses bits does not reproduce the run that it continues.
+  - `d_iso`, `H_ice_prev` and `t_dep` are written in **double** precision,
+    unlike the diagnostic fields, which are single. A restart that loses bits
+    does not reproduce the run that it continues.
   - `time_add` travels in the restart file, rather than being regenerated from
     `layer_resolution`. Rebuilding it from the restart time would shift every
     subsequent isochrone.
+  - The layer stack is sized by the file, not by the `time_end` passed to the
+    restarted `elsa_init`. A restarted run therefore cannot lay down more
+    isochrones than the original run had scheduled.
 
 The grid on which the restart was written must match the grid onto which it
 is read — dimensions, axes and `zeta`. A mismatch is a hard error, rather

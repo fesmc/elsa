@@ -20,10 +20,21 @@ reimplementation of the Bergen ELSA v2.0 rather than a fork. See
 motivation.
 
 ::: {.callout-note}
-This is a reimplementation from scratch and is under active development. The
-library, its public API, the NetCDF output, the restart and the full benchmark
-suite are all in place. The Yelmox coupling is being wired separately.
+The library, its public API, the NetCDF output, the restart and the full
+benchmark suite are all in place. elsa is coupled to Yelmo as the layer
+backend of its passive-tracer subsystem (see [Yelmo coupling](yelmo.qmd)).
 :::
+
+## Where to look
+
+| Page | Content |
+|---|---|
+| [User guide](guide.qmd) | install, build, the host contract, running and restarting |
+| [Parameters](parameters.qmd) | the namelist group, its defaults and how to choose values |
+| [Output](output.qmd) | the output and restart files, and how to read isochrones from them |
+| [API](api.qmd) | the public routines, the state object and the kernels |
+| [Yelmo coupling](yelmo.qmd) | how Yelmo drives elsa through `ytrc` |
+| [Design](design.qmd) | the departures from the published v2.0 scheme |
 
 ## The interface
 

@@ -23,10 +23,17 @@ published scheme, and why.
 Documentation, including a page per benchmark, is published at
 [fesmc.github.io/elsa](https://fesmc.github.io/elsa/).
 
-> **Status: under construction.** The library, its public API, NetCDF output,
-> restart, both benchmarks and the Julia analysis are in place: `make check`
-> passes serial, OpenMP and under bounds checking, and `make validate` passes.
-> The Yelmox coupling is still to come.
+> **Status.** The library, its public API, NetCDF output, restart, the four
+> benchmarks and the Julia analysis are in place: `make check` passes serial,
+> with OpenMP and under bounds checking, and `make validate` passes. elsa is
+> coupled to [Yelmo](https://github.com/fesmc/yelmo) as the layer backend
+> of its passive-tracer subsystem (`ytrc`).
+
+The documentation site covers the [user guide](https://fesmc.github.io/elsa/guide.html),
+the [parameters](https://fesmc.github.io/elsa/parameters.html), the
+[output and restart files](https://fesmc.github.io/elsa/output.html), the
+[API](https://fesmc.github.io/elsa/api.html) and the
+[Yelmo coupling](https://fesmc.github.io/elsa/yelmo.html).
 
 ## Install
 
@@ -122,8 +129,14 @@ call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy"
 ```
 
 The layer stack and the isochrone schedule then come from the file rather than
-from `time_end` and `layer_resolution`. A restarted run is bit-identical to the
+from `time_end` and `layer_resolution`. The stack is not resized on restart, so
+the first `elsa_init` must be given the end time of the whole experiment. A restarted run is bit-identical to the
 run that never stopped, which `test_greenland.x` asserts.
+
+The namelist group need only list the parameters that a run overrides. The
+defaults are read from `input/elsa_defaults.nml`, relative to the directory in
+which the program runs, so a host must keep a copy of that file in its own
+`input/` directory.
 
 Build with `openmp=1` to thread the layer loop. The layers never exchange mass,
 so the result is bit-identical to the serial one at any thread count.

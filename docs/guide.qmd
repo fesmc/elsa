@@ -1,0 +1,244 @@
+---
+title: "User guide"
+subtitle: "Installing, building and driving elsa from a host model"
+---
+
+## Install
+
+elsa is a [configme](https://github.com/fesmc/configme) package. Its only
+dependency is [fesm-utils](https://github.com/fesmc/fesm-utils), which provides
+the `ncio` and `nml` modules. NetCDF is needed at link time, through `ncio`.
+No linear-solver library is required.
+
+```bash
+configme install elsa --only     # elsa + fesm-utils
+```
+
+To configure an existing checkout for a given machine and compiler:
+
+```bash
+cd elsa
+configme -m macbook -c gfortran    # writes the repo-root Makefile
+```
+
+configme assembles the repo-root `Makefile` from `config/Makefile` and the
+compiler and machine fragments, and links `fesm-utils` into the checkout.
+Both are ignored by git.
+
+## Build
+
+```bash
+make elsa-static     # libelsa/include/libelsa.a and the .mod files
+make all             # the library and every benchmark
+make usage           # all targets
+```
+
+Two options can be added to any target:
+
+| Option | Effect |
+|---|---|
+| `openmp=1` | threads the layer loop, and links the OpenMP build of fesm-utils |
+| `debug=1` | bounds checking and floating-point traps, including underflow |
+| `debug=2` | optimized, with profiling output |
+| `debug=3` | as `debug=1`, without the underflow trap |
+
+`debug=3` is the debugging level to use with elsa. The explicit upwind scheme
+lets a draining cell decay through the denormal range on its way to zero,
+which is IEEE-defined and harmless, but which `debug=1` traps with gfortran.
+
+Switching between `openmp=0` and `openmp=1`, or between debug levels, requires
+a `make clean` first, since the object files carry no record of the flags with
+which they were compiled.
+
+## Check the installation
+
+```bash
+make check           # runs the four Fortran benchmarks
+make validate        # runs check, then the Julia validation and figures
+```
+
+`make check` exits non-zero if any benchmark fails. `make validate` needs
+Julia, and instantiates the project in `analysis/` (CairoMakie and NCDatasets)
+on first use. The benchmarks must be run from the repository root, since they
+read `par/`, `data/` and `input/` by relative path. Each benchmark is described
+on its own page under *Benchmarks*.
+
+## The host contract
+
+elsa is driven by a host ice-sheet model. The host supplies the following
+fields on its own grid, and elsa maps them onto its grid internally.
+
+| Field | Shape | Units | Location |
+|---|---|---|---|
+| `x`, `y` | `(nx)`, `(ny)` | m | cell centres, uniform and ascending |
+| `zeta` | `(nz)` | 1 | sigma levels, 0 at the bed and 1 at the surface |
+| `H_ice` | `(nx,ny)` | m | cell centres |
+| `ux`, `uy` | `(nx,ny,nz)` | m yr$^{-1}$ | as declared by `stagger` |
+| `smb`, `bmb` | `(nx,ny)` | m yr$^{-1}$ of ice | cell centres |
+| `time` | scalar | yr | absolute model time |
+
+The following conditions are checked at `elsa_init`, and a violation stops the
+program with a message.
+
+- The horizontal axes must be uniformly spaced to within 0.1 % of the grid
+  spacing. This tolerance admits axes that were stored in single precision,
+  and rejects a stretched grid.
+- `zeta` must be strictly ascending, with `zeta(1) = 0` and `zeta(nz) = 1`.
+  This is the `zeta_aa` convention of Yelmo. The velocity arrays must carry
+  the same number of levels.
+- `stagger` must be `"acx_acy"` or `"aa"`. With `"acx_acy"`, `ux(i,j,:)` sits
+  at $(x_i + \Delta x/2, y_j)$ and `uy(i,j,:)` at $(x_i, y_j + \Delta y/2)$,
+  as in Yelmo. With `"aa"`, both sit at the cell centre.
+
+The mass balance terms are positive for mass gain. A positive `smb` is
+accumulation and a positive `bmb` is basal freeze-on. All host fields may be
+passed in single or in double precision, but not in a mixture of the two
+within one call.
+
+## Calling sequence
+
+```fortran
+use elsa
+
+type(elsa_class) :: els
+
+call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy")
+
+do n = 1, n_steps
+    ! ... the host advances to `time` ...
+    call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
+end do
+
+call elsa_end(els)
+```
+
+`elsa_update` is called once per host time step, unconditionally. It compares
+`time` with the time of its last update and returns immediately unless a full
+coupling period `dt_coupling` has elapsed. When an update is due, the time
+step that elsa uses is the elapsed time, which may exceed `dt_coupling` if the
+host time steps do not divide it. The host thus manages neither the coupling
+interval nor the previous ice thickness.
+
+The fields passed at the update are the instantaneous host fields at `time`.
+elsa applies them over the whole elapsed interval. A host whose mass balance
+or velocity varies strongly within one coupling period should therefore
+choose a shorter `dt_coupling`.
+
+`time_end` sizes the layer stack. The stack is allocated once, with
+`n_layers_init` initialization layers, one layer per scheduled isochrone and
+one accumulating layer on top. No isochrone is scheduled at or beyond
+`time_end`. If the run continues past `time_end`, elsa keeps running, but the
+top layer simply continues to accumulate and no further isochrone is laid
+down. `time_end` should thus be the end of the whole experiment, including any
+restarted continuation.
+
+## The namelist and its defaults file
+
+`elsa_init` reads a namelist group from a file, both named by the caller. The
+group need only list the parameters that the run overrides. All other values
+are taken from the defaults file `input/elsa_defaults.nml`, which also acts as
+the schema: a parameter in the user group that does not appear in the defaults
+file is reported as an error, which catches misspelled names.
+
+The path `input/elsa_defaults.nml` is relative to the directory in which the
+program runs. A host model must therefore carry a copy of this file in its own
+`input/` directory, and keep it synchronized with the elsa version against
+which it links. The parameters are described under [Parameters](parameters.qmd).
+
+## Initial state
+
+At a cold start, elsa fills each ice column with `n_layers_init` layers of
+equal thickness. These initialization layers are not isochrones, since elsa
+has no information on the age of the ice that is present at the start. Their
+deposition time is set to the missing value. The first isochrone is the
+surface at the initial time, and every layer above it is dated.
+
+All ice that is present at initialization is thus treated as older than the
+initial time, with unknown internal structure. The dated part of the column
+grows only through accumulation during the run.
+
+## Output
+
+elsa writes its own NetCDF output when the host asks for it:
+
+```fortran
+call elsa_write_init(els,"elsa.nc",time)          ! once
+call elsa_write_step(els,"elsa.nc",time,n)        ! n = 1, 2, ... along time
+```
+
+The output directory must exist, since NetCDF does not create it. The file
+contents are described under [Output](output.qmd).
+
+## Restart
+
+```fortran
+call elsa_restart_write(els,"elsa_restart.nc")
+...
+call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy", &
+               restart="elsa_restart.nc")
+```
+
+A restarted run is bit-identical to the run that never stopped, which
+`test_greenland.x` asserts. The following rules apply.
+
+- The layer stack, the isochrone schedule and the model time are taken from
+  the file. `time_end`, `layer_resolution`, `layer_file` and `n_layers_init`
+  in the namelist are ignored on restart.
+- If the `time` argument differs from the time in the file, elsa warns and
+  uses the file's time. The first update then spans the gap.
+- `dt_coupling`, `cfl` and `allow_pos_bmb` are read from the namelist as
+  usual, and may be changed across a restart.
+- The grid must match: the dimensions, the axes and `zeta` are compared, and
+  a mismatch stops the program. A changed `grid_factor` therefore fails.
+- Passing `restart="None"` or an empty string is equivalent to omitting the
+  argument, which allows a host to pass its own restart setting through
+  unconditionally.
+
+## OpenMP
+
+With `openmp=1`, elsa threads the loop over layers in the advection and the
+loop over columns in the vertical velocity average. The layers do not exchange
+mass, so each thread writes a disjoint slice of the state. The result is
+bit-identical to the serial result at any thread count.
+
+On the 16 km Greenland benchmark with 20 layers, the update takes around
+0.38 s on one core and 0.15 s on eight. The speedup is bounded by the serial
+parts of the update (the horizontal maps and the mass balance), and improves
+with the number of layers.
+
+## Diagnostics to watch
+
+Two counters in the state report the columns that elsa has emptied while the
+host still holds ice there (see [Design](design.qmd#emptied-columns)).
+`els%now%n_reseed` is the count in the last update and
+`els%now%n_reseed_total` the count since initialization. elsa prints a note
+the first time this happens. A few columns per update at thin, strongly
+ablating margins are expected. A large or growing count indicates that
+`dt_coupling` is too long for the ablation rate, or that the forcing is
+inconsistent with the ice thickness.
+
+At init, elsa also warns if two scheduled isochrones are closer together than
+`dt_coupling`. Layers that are laid down within the same update receive no
+accumulation and remain at zero thickness.
+
+## Limitations
+
+The following limitations follow from the present design. Each is a property
+of the code as it stands, rather than a bug.
+
+- **First-order advection.** The upwind scheme is diffusive in the horizontal.
+  A layer-thickness anomaly retains around 27 % of its peak after one
+  solid-body revolution in the [physics](benchmarks/physics.qmd) benchmark.
+  The isochronal grid removes the vertical diffusion, not the horizontal one.
+- **Uniform Cartesian grids only.** elsa's grid is a coarsening of the host
+  grid over the same axes. Stretched or unstructured host grids are rejected.
+- **Partial coverage at non-integer `grid_factor`.** elsa's grid holds
+  `floor(nx/grid_factor)` cells along x, anchored at the low edge of the host
+  domain. A strip of host cells at the high edge is left uncovered if the
+  ratio is not an integer. This is harmless where the domain edge is ice-free.
+- **Instantaneous forcing.** The host fields at the update time are applied
+  over the whole coupling period, as described above.
+- **Fixed layer stack.** The stack is sized at the first init and is not
+  extended afterwards, including on restart.
+- **Undated initial ice.** The initialization layers carry no age.
+- **No dye tracer.** The `tracer_iso` field of v2.0 is not implemented.

@@ -7,9 +7,9 @@ module elsa_precision
 
     ! elsa works internally in double precision. Layer thicknesses are summed
     ! over a stack that reaches O(10^3) layers and renormalized against the
-    ! host ice thickness every coupling period across O(10^5) yr; the run time
-    ! is dominated by the linear solve, not by array traffic, so the wider type
-    ! costs little. Host fields are accepted in either precision through the
+    ! host ice thickness every coupling period across O(10^5) yr, and a restart
+    ! must reproduce the continuous run bit for bit. The wider type costs only
+    ! memory. Host fields are accepted in either precision through the
     ! generic interfaces in `elsa` and converted at the boundary.
     integer, parameter :: wp = dp
 
