@@ -190,7 +190,7 @@ elsa stops the program with `error stop 1` and a message naming the routine
 for every violation of its contract: invalid parameters, a `time_end` that is not later than the start time, a
 non-uniform axis,
 an invalid `zeta`, an unknown `stagger`, a missing file, an isochrone time
-outside the simulation window, or a restart file that does not match the
+that is not later than the initial time, or a restart file that does not match the
 grid. It issues warnings, without stopping, for isochrones that are closer
 together than the coupling period and for a restart time that differs from
 the host time.

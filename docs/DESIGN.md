@@ -192,6 +192,11 @@ coupling period. v2.0 rejected such a configuration at init; elsa instead lays
 down each isochrone in turn — the additional layers simply receive no
 accumulation — and issues a warning at init.
 
+A layer is laid down at the first update at or after its scheduled time, and
+its deposition time `t_dep` records the time of that update rather than the
+scheduled one. The base of the layer is the ice surface at that update, so
+this is the age that the layer boundary actually carries.
+
 ### Emptied columns
 
 Surface ablation removes ice from the top layer downward and stops when the

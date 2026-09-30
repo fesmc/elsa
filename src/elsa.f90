@@ -378,6 +378,10 @@ contains
         ! fall inside a coupling period if layer_resolution < dt_coupling; v2.0
         ! rejected that configuration at init, this one just handles it (and
         ! warns at init, since the extra layers carry no accumulation).
+        !
+        ! The layer is stamped with `time`, the update it is laid down at, not
+        ! with its scheduled time: its base is the surface at this update, and
+        ! the two differ whenever the updates do not land on the schedule.
 
         type(elsa_class), intent(inout) :: els
         real(wp),         intent(in)    :: time
@@ -394,7 +398,7 @@ contains
 
             els%now%n_top                    = els%now%n_top + 1
             els%now%d_iso(:,:,els%now%n_top) = 0.0_wp
-            els%now%t_dep(els%now%n_top)     = els%par%time_add(els%now%i_add)
+            els%now%t_dep(els%now%n_top)     = time
             els%now%i_add                    = els%now%i_add + 1
 
         end do
@@ -454,7 +458,7 @@ contains
         real(wp),               intent(in)    :: time_init, time_end
         real(wp), optional,     intent(in)    :: time_rst
 
-        integer  :: k, n
+        integer  :: k, n, n_skip
         real(wp) :: t, dt_min, time_start, t_last
 
         logical :: use_file, use_res
@@ -500,10 +504,10 @@ contains
 
         do k = 1, n
             t = sched(k)
-            if (t .le. time_init .or. t .ge. time_end) then
-                write(*,*) "elsa_build_time_add:: Error: isochrone time outside the simulation window."
+            if (t .le. time_init) then
+                write(*,*) "elsa_build_time_add:: Error: isochrone time not later than the initial time."
                 write(*,*) "  time_add(",k,") = ", t
-                write(*,*) "  time_init, time_end = ", time_init, time_end
+                write(*,*) "  time_init      = ", time_init
                 error stop 1
             end if
             if (k .gt. 1) then
@@ -514,6 +518,16 @@ contains
                 end if
             end if
         end do
+
+        ! A layer file may list times beyond this run: one file serves every
+        ! segment of a restarted experiment. Those are left for a later segment.
+        n_skip = count(sched .ge. time_end)
+        if (n_skip .gt. 0) then
+            sched = pack(sched,sched .lt. time_end)
+            n     = size(sched)
+            write(*,'(a,i0,a,f0.2)') " elsa:: Note: ", n_skip, &
+                    " isochrone time(s) in layer_file skipped, at or after time_end = ", time_end
+        end if
 
         if (present(time_rst)) then
 

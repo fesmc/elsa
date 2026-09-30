@@ -9,8 +9,9 @@ module elsa_io
     !
     ! layer_time is the state's stored t_dep, rewritten each step, so a layer not
     ! yet laid down reads as missing until the step it is deposited. It is not a
-    ! static vector of the planned schedule: deposition times may vary at runtime,
-    ! and only the times actually realised are reported.
+    ! static vector of the planned schedule: a layer is stamped with the time of
+    ! the update it was laid down at, which is the scheduled time only if an
+    ! update lands on it.
 
     use elsa_precision, only : sp, wp, MV
     use elsa_defs

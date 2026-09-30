@@ -127,7 +127,7 @@ choose a shorter `dt_coupling`.
 `time_end` sizes the layer stack. The stack is allocated once, with
 `n_layers_init` initialization layers, one layer per scheduled isochrone and
 one accumulating layer on top. No isochrone is scheduled at or beyond
-`time_end`, and `time_end` must be later than `time`. If the run continues
+`time_end` (entries of a `layer_file` that lie there are skipped with a note), and `time_end` must be later than `time`. If the run continues
 past `time_end` without a restart, elsa keeps running, but the top layer
 simply continues to accumulate and no further isochrone is laid down. A
 restart with a later `time_end` extends the schedule (see below).

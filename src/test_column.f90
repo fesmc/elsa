@@ -41,6 +41,9 @@ program test_column
 
     call test_discrete_exact(n_fail)
     call test_nye_convergence(n_fail)
+    call test_single_precision(n_fail)
+    call test_layer_file(n_fail)
+    call test_stagger(n_fail)
 
     write(*,*) ""
     if (n_fail .gt. 0) then
@@ -68,19 +71,13 @@ contains
 
     end subroutine check
 
-    subroutine run_divide(els,group,dt,write_output)
-        ! Drive elsa with a steady, horizontally uniform ice divide.
-        type(elsa_class),  intent(inout) :: els
-        character(len=*),  intent(in)    :: group
-        real(wp),          intent(in)    :: dt
-        logical, optional, intent(in)    :: write_output
+    subroutine set_divide(x,y,zeta,H_ice,smb,bmb,ux,uy)
+        ! The host fields of a steady, horizontally uniform ice divide.
+        real(wp), intent(out) :: x(NX), y(NY), zeta(NZ)
+        real(wp), intent(out) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
+        real(wp), intent(out) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
 
-        real(wp) :: x(NX), y(NY), zeta(NZ)
-        real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
-        real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
-        real(wp) :: time
-        integer  :: i, n, n_steps, n_out
-        logical  :: do_write
+        integer :: i
 
         do i = 1, NX
             x(i) = (real(i,wp) - 0.5_wp)*DX
@@ -97,6 +94,24 @@ contains
         bmb   = 0.0_wp
         ux    = 0.0_wp
         uy    = 0.0_wp
+
+    end subroutine set_divide
+
+    subroutine run_divide(els,group,dt,write_output)
+        ! Drive elsa with a steady, horizontally uniform ice divide.
+        type(elsa_class),  intent(inout) :: els
+        character(len=*),  intent(in)    :: group
+        real(wp),          intent(in)    :: dt
+        logical, optional, intent(in)    :: write_output
+
+        real(wp) :: x(NX), y(NY), zeta(NZ)
+        real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
+        real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
+        real(wp) :: time
+        integer  :: n, n_steps, n_out
+        logical  :: do_write
+
+        call set_divide(x,y,zeta,H_ice,smb,bmb,ux,uy)
 
         do_write = .false.
         if (present(write_output)) do_write = write_output
@@ -220,5 +235,196 @@ contains
         end do
 
     end subroutine test_nye_convergence
+
+    subroutine test_single_precision(n_fail)
+        ! A single-precision host must get the double-precision answer for the
+        ! same (single-precision) numbers. The host is also called four times per
+        ! coupling period here, so three calls in four are not due and must
+        ! leave the state untouched.
+        integer, intent(inout) :: n_fail
+
+        real(wp), parameter :: DT = 100.0_wp
+
+        type(elsa_class) :: els_dp, els_sp
+        real(wp) :: x(NX), y(NY), zeta(NZ)
+        real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
+        real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
+        real(wp) :: time, time_prev
+        integer  :: n, n_steps
+        logical  :: gated
+
+        write(*,*) ""
+        write(*,*) " single-precision interface"
+
+        call set_divide(x,y,zeta,H_ice,smb,bmb,ux,uy)
+
+        ! The reference sees the accumulation the single-precision host has.
+        smb = real(real(smb,sp),wp)
+
+        n_steps = nint((TIME_1-TIME_0)/DT)
+
+        call elsa_init(els_dp,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+        do n = 1, n_steps
+            call elsa_update(els_dp,TIME_0+real(n,wp)*DT,H_ice,ux,uy,smb,bmb)
+        end do
+
+        call elsa_init(els_sp,"par/test_column.nml","column",real(TIME_0,sp),real(TIME_1,sp), &
+                       real(x,sp),real(y,sp),real(zeta,sp),real(H_ice,sp),"aa")
+
+        gated = .true.
+        do n = 1, 4*n_steps
+            time      = TIME_0 + real(n,wp)*0.25_wp*DT
+            time_prev = els_sp%now%time
+            call elsa_update(els_sp,real(time,sp),real(H_ice,sp), &
+                             real(ux,sp),real(uy,sp),real(smb,sp),real(bmb,sp))
+            if (mod(n,4) .ne. 0 .and. els_sp%now%time .ne. time_prev) gated = .false.
+        end do
+
+        call check(gated,                             "calls not due do nothing  ",n_fail)
+        call check(els_sp%now%n_top .eq. els_dp%now%n_top,"same n_top as double      ",n_fail)
+        call check(maxval(abs(els_sp%now%d_iso - els_dp%now%d_iso)) .eq. 0.0_wp, &
+                                                      "bit-identical to double   ",n_fail)
+
+        call elsa_end(els_dp)
+        call elsa_end(els_sp)
+
+    end subroutine test_single_precision
+
+    subroutine test_layer_file(n_fail)
+        ! An explicit, irregular isochrone list: the schedule is the file's, the
+        ! isochrones sit where the discrete recursion puts them, and a restart
+        ! whose first segment ended mid-list picks up the rest of the list.
+        !
+        ! The second entry falls between updates. Its layer is laid down at the
+        ! next update, and must be stamped with that time, not the scheduled one.
+        integer, intent(inout) :: n_fail
+
+        real(wp), parameter :: DT       = 100.0_wp
+        real(wp), parameter :: TIME_MID = 5000.0_wp
+        real(wp), parameter :: T_ISO(4)  = [1000.0_wp,2550.0_wp,7000.0_wp,15000.0_wp]
+        real(wp), parameter :: T_LAID(4) = [1000.0_wp,2600.0_wp,7000.0_wp,15000.0_wp]
+
+        character(len=*), parameter :: FILE_LAYERS = "output/column/layers.txt"
+        character(len=*), parameter :: FILE_RST    = "output/column/elsa_restart.nc"
+
+        type(elsa_class) :: els
+        real(wp) :: x(NX), y(NY), zeta(NZ)
+        real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
+        real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
+        real(wp), allocatable :: d_ref(:,:,:)
+        real(wp) :: r, err
+        integer  :: n, jj, unit
+
+        write(*,*) ""
+        write(*,*) " isochrones from a layer file"
+
+        open(newunit=unit,file=FILE_LAYERS,status="replace",action="write")
+        do jj = 1, size(T_ISO)
+            write(unit,*) T_ISO(jj)
+        end do
+        close(unit)
+
+        call set_divide(x,y,zeta,H_ice,smb,bmb,ux,uy)
+
+        call elsa_init(els,"par/test_column.nml","column_file",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+
+        call check(size(els%par%time_add) .eq. size(T_ISO),"schedule has file's length",n_fail)
+        if (size(els%par%time_add) .eq. size(T_ISO)) then
+            call check(all(els%par%time_add .eq. T_ISO),   "schedule has file's times ",n_fail)
+        end if
+
+        do n = 1, nint((TIME_1-TIME_0)/DT)
+            call elsa_update(els,TIME_0+real(n,wp)*DT,H_ice,ux,uy,smb,bmb)
+        end do
+
+        r   = H_CONST/(H_CONST + ACC*DT)
+        err = 0.0_wp
+        do jj = 1, size(T_ISO)
+            err = max(err,abs(els%now%dsum_iso(3,3,N_INIT+jj) &
+                              /(H_CONST*r**nint((TIME_1-T_LAID(jj))/DT)) - 1.0_wp))
+        end do
+        call check(err .lt. 1.0e-11_wp,               "isochrone heights exact   ",n_fail)
+        call check(all(els%now%t_dep(N_INIT+2:N_INIT+1+size(T_ISO)) .eq. T_LAID), &
+                                                      "t_dep is the update time  ",n_fail)
+
+        allocate(d_ref(size(els%now%d_iso,1),size(els%now%d_iso,2),size(els%now%d_iso,3)))
+        d_ref = els%now%d_iso
+        call elsa_end(els)
+
+        ! -- first segment knows only its own end, mid-list -----------------------
+        call elsa_init(els,"par/test_column.nml","column_file",TIME_0,TIME_MID,x,y,zeta,H_ice,"aa")
+        call check(size(els%par%time_add) .eq. 2,     "segment skips later times ",n_fail)
+        do n = 1, nint((TIME_MID-TIME_0)/DT)
+            call elsa_update(els,TIME_0+real(n,wp)*DT,H_ice,ux,uy,smb,bmb)
+        end do
+        call elsa_restart_write(els,FILE_RST)
+        call elsa_end(els)
+
+        call elsa_init(els,"par/test_column.nml","column_file",TIME_MID,TIME_1,x,y,zeta,H_ice,"aa", &
+                       restart=FILE_RST)
+        call check(size(els%par%time_add) .eq. size(T_ISO),"restart extends the list  ",n_fail)
+        do n = 1, nint((TIME_1-TIME_MID)/DT)
+            call elsa_update(els,TIME_MID+real(n,wp)*DT,H_ice,ux,uy,smb,bmb)
+        end do
+
+        if (size(els%now%d_iso,3) .eq. size(d_ref,3)) then
+            call check(maxval(abs(els%now%d_iso - d_ref)) .eq. 0.0_wp, &
+                                                      "extended is bit-identical ",n_fail)
+        else
+            call check(.false.,                       "extended is bit-identical ",n_fail)
+        end if
+        call check(all(els%now%t_dep(N_INIT+2:N_INIT+1+size(T_ISO)) .eq. T_LAID), &
+                                                      "extended keeps t_dep      ",n_fail)
+
+        call elsa_end(els)
+        deallocate(d_ref)
+
+    end subroutine test_layer_file
+
+    subroutine test_stagger(n_fail)
+        ! End to end with flow: a uniform velocity is the same field whether the
+        ! host declares it on staggered faces or at cell centres, so the two
+        ! declarations must give the same layers.
+        integer, intent(inout) :: n_fail
+
+        real(wp), parameter :: DT = 100.0_wp
+        real(wp), parameter :: U0 = 10.0_wp         ! [m/yr]
+
+        type(elsa_class) :: els_ac, els_aa
+        real(wp) :: x(NX), y(NY), zeta(NZ)
+        real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
+        real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
+        real(wp) :: time, err
+        integer  :: n
+
+        write(*,*) ""
+        write(*,*) " staggering, with flow"
+
+        call set_divide(x,y,zeta,H_ice,smb,bmb,ux,uy)
+        ux =  U0
+        uy = -0.5_wp*U0
+
+        call elsa_init(els_ac,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"acx_acy")
+        call elsa_init(els_aa,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+
+        do n = 1, nint((TIME_1-TIME_0)/DT)
+            time = TIME_0 + real(n,wp)*DT
+            call elsa_update(els_ac,time,H_ice,ux,uy,smb,bmb)
+            call elsa_update(els_aa,time,H_ice,ux,uy,smb,bmb)
+        end do
+
+        err = maxval(abs(els_aa%now%d_iso - els_ac%now%d_iso))/H_CONST
+        write(*,'(a,es9.2)') "   max relative difference aa vs acx_acy: ", err
+
+        call check(maxval(abs(els_ac%now%ux_iso(1:NX-1,:,1:els_ac%now%n_top) - U0)) .lt. 1.0e-9_wp, &
+                                                      "flow reaches the layers   ",n_fail)
+        call check(err .lt. 1.0e-10_wp,               "aa and acx_acy agree      ",n_fail)
+        call check(abs(els_aa%now%dsum_iso(3,3,els_aa%now%n_top) - H_CONST) .lt. 1.0e-9_wp, &
+                                                      "column sums to H          ",n_fail)
+
+        call elsa_end(els_ac)
+        call elsa_end(els_aa)
+
+    end subroutine test_stagger
 
 end program test_column

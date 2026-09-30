@@ -58,9 +58,15 @@ $\lceil (t_\mathrm{end} - t_\mathrm{init})/\mathrm{layer\_resolution} \rceil - 1
 
 With `layer_file`, the schedule is read from a text file with one isochrone
 time per line, in years, on the same time axis as the host. Blank lines are
-skipped. The times must be strictly increasing and must lie strictly between
-the initial time and `time_end`. This option allows the layers to be aligned
-with dated radiostratigraphic horizons.
+skipped. The times must be strictly increasing and later than the initial
+time. Times at or after `time_end` are skipped with a note, so that one file
+can serve every segment of a restarted experiment. This option allows the
+layers to be aligned with dated radiostratigraphic horizons.
+
+In both modes, a layer is laid down at the first update at or after its
+scheduled time, and is stamped with the time of that update. The schedule
+and the host time steps should thus be chosen so that updates land on the
+scheduled times, if exact horizons are needed.
 
 In both cases the surface at the initial time is an isochrone as well, so the
 number of dated isochrones is one more than the number of scheduled ones. The

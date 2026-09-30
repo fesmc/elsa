@@ -46,3 +46,14 @@
     cfl              = 0.9
     allow_pos_bmb    = False
 /
+
+! Explicit isochrone list, written by the benchmark itself. Irregular spacing.
+&column_file
+    n_layers_init    = 10
+    layer_resolution = 0.0
+    layer_file       = "output/column/layers.txt"
+    grid_factor      = 1.0
+    dt_coupling      = 100.0
+    cfl              = 0.9
+    allow_pos_bmb    = False
+/

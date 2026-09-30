@@ -45,7 +45,7 @@ module elsa_defs
         ! x,y (no advection). MV for the initialization fill, which are not
         ! isochrones, and for layers not yet laid down. The stored source of
         ! truth for the layer->time mapping -- see elsa_add_due_layers.
-        real(wp), allocatable :: t_dep(:)         ! [yr] time the layer was laid down
+        real(wp), allocatable :: t_dep(:)         ! [yr] time of the update the layer was laid down at
 
         ! Layers, on elsa's grid. Layer 1 is at the bed.
         real(wp), allocatable :: d_iso(:,:,:)     ! [m] layer thickness, aa nodes

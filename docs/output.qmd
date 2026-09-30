@@ -19,8 +19,10 @@ the following convention.
   height of the **top** of layer `k` above the bed, so that
   `dsum_iso(i,j,n_top)` is the ice thickness.
 - The deposition time of layer `k` (`t_dep` in the state and in the restart
-  file, `layer_time` in the output file) is the time at which the layer was
-  opened. It is the age label of the isochrone at the **base** of layer `k`.
+  file, `layer_time` in the output file) is the time of the update at which
+  the layer was opened. This is the first update at or after the scheduled
+  isochrone time, so it equals the scheduled time only if an update lands on
+  it, and is otherwise later by less than one coupling period. It is the age label of the isochrone at the **base** of layer `k`.
   The ice inside layer `k` was deposited between `layer_time(k)` and
   `layer_time(k+1)`.
 - The initialization layers, `1` to `n_layers_init`, carry the missing value
@@ -121,13 +123,13 @@ H    = ds["H_ice"][:, :, it]
 dsum = ds["dsum_iso"][:, :, :, it]
 
 t_iso = 1000.0
-k     = findfirst(==(t_iso), lt)       # the layer whose base is this isochrone
+k     = findfirst(>=(t_iso), lt)       # the layer whose base is this isochrone
 
 depth = H .- dsum[:, :, k-1]
 depth[H .<= 0] .= NaN
 ```
 
-The age of this isochrone at time `t` is `t - t_iso`. A comparison with
+The age of this isochrone at time `t` is `t - lt[k]`. A comparison with
 observed radiostratigraphy requires the depth of a given age, so the
 isochrone schedule should contain the dated horizons of interest, either
 through a suitable `layer_resolution` or through a `layer_file`.
