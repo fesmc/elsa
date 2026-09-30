@@ -112,10 +112,14 @@ contains
 
     end subroutine elsa_restart_write
 
-    subroutine elsa_restart_read_par(par,filename)
-        ! The layer structure, which must be known before the state is allocated.
+    subroutine elsa_restart_read_par(par,filename,time,time_init)
+        ! The layer structure, which must be known before the state is allocated:
+        ! the schedule the file carries, the time it was written at, and the time
+        ! elsa was first initialized (the deposition time of the first dated
+        ! layer). The caller may extend the schedule before allocating.
         type(elsa_param_class), intent(inout) :: par
         character(len=*),       intent(in)    :: filename
+        real(wp),               intent(out)   :: time, time_init
 
         integer :: n_add
         logical :: exists
@@ -128,12 +132,13 @@ contains
 
         call nc_read(filename,"n_layers_init",par%n_layers_init,start=[1],count=[1])
 
-        par%n_layers = nc_size(filename,"layer")
-
         if (allocated(par%time_add)) deallocate(par%time_add)
-        n_add = par%n_layers - par%n_layers_init - 1
+        n_add = nc_size(filename,"layer") - par%n_layers_init - 1
         allocate(par%time_add(n_add))
         if (n_add .gt. 0) call nc_read(filename,"time_add",par%time_add)
+
+        call nc_read(filename,"time", time,     start=[1],count=[1])
+        call nc_read(filename,"t_dep",time_init,start=[par%n_layers_init+1],count=[1])
 
     end subroutine elsa_restart_read_par
 
@@ -142,9 +147,14 @@ contains
         ! grid the restart was written on must be the grid we are about to use:
         ! a changed grid_factor or a changed host domain is a hard error, not
         ! something to interpolate away silently.
+        !
+        ! The stack may be taller than the file's, if the schedule was extended
+        ! for the new run: the file then fills the lower layers, and the rest
+        ! keep their freshly allocated values.
         type(elsa_class), intent(inout) :: els
         character(len=*), intent(in)    :: filename
 
+        integer :: nl
         real(wp), allocatable :: x_chk(:), y_chk(:), zeta_chk(:)
 
         if (nc_size(filename,"xc") .ne. els%map%nx .or. &
@@ -182,9 +192,11 @@ contains
         call nc_read(filename,"i_add",         els%now%i_add,         start=[1],count=[1])
         call nc_read(filename,"n_reseed_total",els%now%n_reseed_total,start=[1],count=[1])
 
-        call nc_read(filename,"d_iso",     els%now%d_iso)
+        nl = nc_size(filename,"layer")
+
+        call nc_read(filename,"d_iso",     els%now%d_iso(:,:,1:nl))
         call nc_read(filename,"H_ice_prev",els%now%H_ice_prev)
-        call nc_read(filename,"t_dep",     els%now%t_dep)
+        call nc_read(filename,"t_dep",     els%now%t_dep(1:nl))
 
     end subroutine elsa_restart_read_state
 

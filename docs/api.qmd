@@ -35,7 +35,7 @@ call elsa_init(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger [,restart
 | `els` | `type(elsa_class)`, inout | the elsa object |
 | `filename`, `group` | character | the namelist file and the group to read |
 | `time` | real, yr | the initial time |
-| `time_end` | real, yr | the end of the experiment, which sizes the layer stack |
+| `time_end` | real, yr | the end of the run, later than `time`, which sizes the layer stack |
 | `x`, `y` | real `(nx)`, `(ny)`, m | the host's cell-centre axes |
 | `zeta` | real `(nz)` | the host's sigma levels, 0 at the bed to 1 at the surface |
 | `H_ice` | real `(nx,ny)`, m | the initial ice thickness |
@@ -61,7 +61,8 @@ call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
 | `smb`, `bmb` | real `(nx,ny)`, m yr$^{-1}$ | surface and basal mass balance, positive for gain |
 
 The routine returns immediately unless `dt_coupling` has elapsed since the
-last update. Otherwise it performs the update sequence given under
+last update. This check precedes any conversion of the host fields, so a
+call that is not due costs nothing in either precision. Otherwise it performs the update sequence given under
 [Design](design.qmd#the-update-sequence). It stops the program if an
 isochrone is due and the layer stack is exhausted, which cannot happen with
 a schedule built at init.
@@ -186,7 +187,8 @@ change in m, i.e., the mass balance multiplied by the time step.
 ## Error handling
 
 elsa stops the program with `error stop 1` and a message naming the routine
-for every violation of its contract: invalid parameters, a non-uniform axis,
+for every violation of its contract: invalid parameters, a `time_end` that is not later than the start time, a
+non-uniform axis,
 an invalid `zeta`, an unknown `stagger`, a missing file, an isochrone time
 outside the simulation window, or a restart file that does not match the
 grid. It issues warnings, without stopping, for isochrones that are closer

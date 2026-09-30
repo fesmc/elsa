@@ -366,9 +366,14 @@ two:
   - `time_add` travels in the restart file, rather than being regenerated from
     `layer_resolution`. Rebuilding it from the restart time would shift every
     subsequent isochrone.
-  - The layer stack is sized by the file, not by the `time_end` passed to the
-    restarted `elsa_init`. A restarted run therefore cannot lay down more
-    isochrones than the original run had scheduled.
+  - The schedule in the file is extended, never rebuilt. If the `time_end`
+    passed to the restarted `elsa_init` lies beyond the carried schedule, the
+    isochrones between the restart time and `time_end` are appended and the
+    stack is allocated for the longer schedule. The regular schedule remains
+    anchored on the original initial time, which is recovered from `t_dep`,
+    so that a run split into segments lays down the same isochrones as one
+    continuous run. An appended isochrone that falls on the restart time
+    itself is laid down at init.
 
 The grid on which the restart was written must match the grid onto which it
 is read — dimensions, axes and `zeta`. A mismatch is a hard error, rather

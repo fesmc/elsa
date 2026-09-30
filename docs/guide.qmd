@@ -127,10 +127,10 @@ choose a shorter `dt_coupling`.
 `time_end` sizes the layer stack. The stack is allocated once, with
 `n_layers_init` initialization layers, one layer per scheduled isochrone and
 one accumulating layer on top. No isochrone is scheduled at or beyond
-`time_end`. If the run continues past `time_end`, elsa keeps running, but the
-top layer simply continues to accumulate and no further isochrone is laid
-down. `time_end` should thus be the end of the whole experiment, including any
-restarted continuation.
+`time_end`, and `time_end` must be later than `time`. If the run continues
+past `time_end` without a restart, elsa keeps running, but the top layer
+simply continues to accumulate and no further isochrone is laid down. A
+restart with a later `time_end` extends the schedule (see below).
 
 ## The namelist and its defaults file
 
@@ -181,9 +181,18 @@ call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy"
 A restarted run is bit-identical to the run that never stopped, which
 `test_greenland.x` asserts. The following rules apply.
 
-- The layer stack, the isochrone schedule and the model time are taken from
-  the file. `time_end`, `layer_resolution`, `layer_file` and `n_layers_init`
-  in the namelist are ignored on restart.
+- The layers, the isochrone schedule and the model time are taken from the
+  file. `n_layers_init` in the namelist is ignored on restart.
+- If `time_end` lies beyond the schedule in the file, the schedule is
+  extended with the isochrones between the restart time and `time_end`, from
+  `layer_resolution` or `layer_file`, and the stack is sized accordingly. The
+  regular schedule remains anchored on the original initial time. An
+  experiment can thus be run in segments, each knowing only its own end time,
+  and lays down the same isochrones as one continuous run.
+- If the earlier run continued past the end of its schedule, the scheduled
+  times that it missed are not added afterwards. The ice of that period
+  remains in a single layer.
+- `time_end` must be later than the restart time.
 - If the `time` argument differs from the time in the file, elsa warns and
   uses the file's time. The first update then spans the gap.
 - `dt_coupling`, `cfl` and `allow_pos_bmb` are read from the namelist as
@@ -238,7 +247,8 @@ of the code as it stands, rather than a bug.
   ratio is not an integer. This is harmless where the domain edge is ice-free.
 - **Instantaneous forcing.** The host fields at the update time are applied
   over the whole coupling period, as described above.
-- **Fixed layer stack.** The stack is sized at the first init and is not
-  extended afterwards, including on restart.
+- **Fixed layer stack within a run.** The stack is sized at init and is not
+  extended during the run. It is extended on restart if `time_end` requires
+  it.
 - **Undated initial ice.** The initialization layers carry no age.
 - **No dye tracer.** The `tracer_iso` field of v2.0 is not implemented.

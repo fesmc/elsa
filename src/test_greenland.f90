@@ -354,6 +354,35 @@ contains
                                maxval(abs(els%now%d_iso - d_ref)), " m"
 
         call elsa_end(els)
+
+        ! -- the same, but the first segment only knew about its own end time --
+        ! The restart must extend the schedule and the stack to the new time_end,
+        ! including the isochrone that falls on the restart time itself.
+        call elsa_init(els,"par/test_greenland.nml",GROUP,TIME_0,TIME_MID,xc,yc,zeta,H_ice,"acx_acy")
+        do n = 1, nint((TIME_MID-TIME_0)/dt)
+            call elsa_update(els,TIME_0+real(n,wp)*dt,H_ice,ux,uy,smb,bmb)
+        end do
+        call elsa_restart_write(els,FILE_RST)
+        call elsa_end(els)
+
+        call elsa_init(els,"par/test_greenland.nml",GROUP,TIME_MID,TIME_1,xc,yc,zeta,H_ice, &
+                       "acx_acy",restart=FILE_RST)
+
+        call check(size(els%now%d_iso,3) .eq. size(d_ref,3),"extended restart resizes  ",n_fail)
+
+        do n = 1, nint((TIME_1-TIME_MID)/dt)
+            time = TIME_MID + real(n,wp)*dt
+            call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
+        end do
+
+        call check(els%now%n_top .eq. n_top_ref,"extended ends, same n_top ",n_fail)
+        call check(els%now%i_add .eq. i_add_ref,"extended ends, same i_add ",n_fail)
+        if (size(els%now%d_iso,3) .eq. size(d_ref,3)) then
+            call check(maxval(abs(els%now%d_iso - d_ref)) .eq. 0.0_wp, &
+                                                "extended is bit-identical ",n_fail)
+        end if
+
+        call elsa_end(els)
         deallocate(d_ref)
 
     end subroutine test_restart

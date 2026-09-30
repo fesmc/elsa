@@ -129,8 +129,8 @@ call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy"
 ```
 
 The layer stack and the isochrone schedule then come from the file rather than
-from `time_end` and `layer_resolution`. The stack is not resized on restart, so
-the first `elsa_init` must be given the end time of the whole experiment. A restarted run is bit-identical to the
+from `layer_resolution`. If `time_end` lies beyond the schedule in the file, the
+schedule and the stack are extended to cover the new run. A restarted run is bit-identical to the
 run that never stopped, which `test_greenland.x` asserts.
 
 The namelist group need only list the parameters that a run overrides. The

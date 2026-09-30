@@ -68,11 +68,13 @@ contains
         ! grown: a 100 kyr run at 200 yr resolution holds ~500 layers, and
         ! reallocating that is not something to do inside a time loop.
         !
-        ! With `restart`, the layer stack and the isochrone schedule come from the
-        ! file rather than from `time_end` and `layer_resolution`, and `time` is
-        ! taken from the file too. The remaining namelist parameters (dt_coupling,
-        ! cfl, grid_factor, allow_pos_bmb) are still read, so they may be changed
-        ! across a restart -- but a changed grid_factor will fail the grid check.
+        ! With `restart`, the layers and the isochrone schedule laid out so far
+        ! come from the file, and `time` is taken from the file too. If `time_end`
+        ! reaches beyond that schedule, the schedule and the stack are extended
+        ! to cover the new run (see elsa_build_time_add). The remaining namelist
+        ! parameters (dt_coupling, cfl, grid_factor, allow_pos_bmb) are still
+        ! read, so they may be changed across a restart -- but a changed
+        ! grid_factor will fail the grid check.
 
         type(elsa_class),           intent(inout) :: els
         character(len=*),           intent(in)    :: filename, group
@@ -82,8 +84,9 @@ contains
         character(len=*),           intent(in)    :: stagger
         character(len=*), optional, intent(in)    :: restart
 
-        integer :: k
-        logical :: is_restart
+        integer  :: k
+        logical  :: is_restart
+        real(wp) :: time_rst, time_init_rst
 
         is_restart = present(restart)
         if (is_restart) then
@@ -93,11 +96,13 @@ contains
         call elsa_par_load(els%par,filename,group)
 
         if (is_restart) then
-            call elsa_restart_read_par(els%par,restart)
+            call elsa_restart_read_par(els%par,restart,time_rst,time_init_rst)
+            call elsa_build_time_add(els%par,time_init_rst,time_end,time_rst=time_rst)
         else
             call elsa_build_time_add(els%par,time,time_end)
-            els%par%n_layers = els%par%n_layers_init + size(els%par%time_add) + 1
         end if
+
+        els%par%n_layers = els%par%n_layers_init + size(els%par%time_add) + 1
 
         call elsa_map_init(els%map,x,y,zeta,stagger,els%par%grid_factor)
 
@@ -117,6 +122,11 @@ contains
                 write(*,'(a,f14.2)')  "   host    : ", time
                 write(*,'(a)')        "   Using the restart time; the first update will span the gap."
             end if
+
+            ! An isochrone that the extended schedule places at the restart time
+            ! itself is laid down now, as the continuous run would have done at
+            ! the end of its last update.
+            call elsa_add_due_layers(els,els%now%time)
 
         else
 
@@ -159,10 +169,9 @@ contains
 
         real(wp) :: dt
 
-        dt = time - els%now%time
+        if (.not. elsa_update_due(els,time)) return
 
-        if (dt .le. 0.0_wp) return
-        if (dt .lt. els%par%dt_coupling*(1.0_wp - TIME_TOL)) return
+        dt = time - els%now%time
 
         ! -- host state onto elsa's grid
         call map_scalar(els%map,H_ice,els%now%H_ice)
@@ -246,6 +255,10 @@ contains
         real(sp),         intent(in)    :: ux(:,:,:), uy(:,:,:)
         real(sp),         intent(in)    :: smb(:,:), bmb(:,:)
 
+        ! Gate before converting: the host calls every timestep, and most calls
+        ! are not due.
+        if (.not. elsa_update_due(els,real(time,dp))) return
+
         call elsa_update_dp(els,real(time,dp),real(H_ice,dp), &
                             real(ux,dp),real(uy,dp),real(smb,dp),real(bmb,dp))
 
@@ -254,6 +267,20 @@ contains
     ! ======================================================================
     ! Internals
     ! ======================================================================
+
+    function elsa_update_due(els,time) result(due)
+        ! Whether a coupling period has elapsed since the last update.
+        type(elsa_class), intent(in) :: els
+        real(wp),         intent(in) :: time
+        logical :: due
+
+        real(wp) :: dt
+
+        dt = time - els%now%time
+
+        due = dt .gt. 0.0_wp .and. dt .ge. els%par%dt_coupling*(1.0_wp - TIME_TOL)
+
+    end function elsa_update_due
 
     subroutine elsa_interp_layer_velocities(els)
         ! Layer-mean host velocity at each of elsa's faces.
@@ -412,15 +439,38 @@ contains
 
     end subroutine elsa_par_load
 
-    subroutine elsa_build_time_add(par,time_init,time_end)
-        ! The isochrone times, from either a regular resolution or an explicit list.
+    subroutine elsa_build_time_add(par,time_init,time_end,time_rst)
+        ! The isochrone times, from either a regular resolution or an explicit
+        ! list. `time_init` is the time elsa was first initialized, which anchors
+        ! the regular schedule.
+        !
+        ! On a restart (`time_rst` present), par%time_add arrives holding the
+        ! schedule carried by the restart file. It is kept as it is, and extended
+        ! with the isochrones that fall between the restart time and `time_end`,
+        ! so that a run continued beyond its original end time keeps laying
+        ! layers down. Times between the end of the carried schedule and the
+        ! restart time are not added: that ice is already in a single layer.
         type(elsa_param_class), intent(inout) :: par
         real(wp),               intent(in)    :: time_init, time_end
+        real(wp), optional,     intent(in)    :: time_rst
 
         integer  :: k, n
-        real(wp) :: t, dt_min
+        real(wp) :: t, dt_min, time_start, t_last
 
         logical :: use_file, use_res
+
+        real(wp), allocatable :: sched(:), time_add(:)
+        logical,  allocatable :: keep(:)
+
+        time_start = time_init
+        if (present(time_rst)) time_start = time_rst
+
+        if (time_end .le. time_start) then
+            write(*,*) "elsa_build_time_add:: Error: time_end must be later than the start time."
+            write(*,*) "  time, time_end = ", time_start, time_end
+            write(*,*) "  time_end sizes the layer stack: set it to the end of the run."
+            error stop 1
+        end if
 
         use_file = trim(par%layer_file) .ne. "None"
         use_res  = par%layer_resolution .gt. 0.0_wp
@@ -432,26 +482,24 @@ contains
             error stop 1
         end if
 
-        if (allocated(par%time_add)) deallocate(par%time_add)
-
         if (use_file) then
 
-            call elsa_read_layer_file(par%time_add,par%layer_file)
+            call elsa_read_layer_file(sched,par%layer_file)
 
         else
 
             n = max(0, ceiling((time_end-time_init)/par%layer_resolution) - 1)
-            allocate(par%time_add(n))
+            allocate(sched(n))
             do k = 1, n
-                par%time_add(k) = time_init + real(k,wp)*par%layer_resolution
+                sched(k) = time_init + real(k,wp)*par%layer_resolution
             end do
 
         end if
 
-        n = size(par%time_add)
+        n = size(sched)
 
         do k = 1, n
-            t = par%time_add(k)
+            t = sched(k)
             if (t .le. time_init .or. t .ge. time_end) then
                 write(*,*) "elsa_build_time_add:: Error: isochrone time outside the simulation window."
                 write(*,*) "  time_add(",k,") = ", t
@@ -459,13 +507,37 @@ contains
                 error stop 1
             end if
             if (k .gt. 1) then
-                if (t .le. par%time_add(k-1)) then
+                if (t .le. sched(k-1)) then
                     write(*,*) "elsa_build_time_add:: Error: isochrone times must be strictly increasing."
                     write(*,*) "  breaks at k = ", k
                     error stop 1
                 end if
             end if
         end do
+
+        if (present(time_rst)) then
+
+            t_last = time_init
+            if (size(par%time_add) .gt. 0) t_last = par%time_add(size(par%time_add))
+
+            allocate(keep(n))
+            keep = sched .gt. t_last   + TIME_TOL*abs(t_last)   + TIME_TOL .and. &
+                   sched .ge. time_rst - TIME_TOL*abs(time_rst) - TIME_TOL
+
+            allocate(time_add(size(par%time_add)+count(keep)))
+            time_add(1:size(par%time_add))  = par%time_add
+            time_add(size(par%time_add)+1:) = pack(sched,keep)
+
+            call move_alloc(time_add,par%time_add)
+
+        else
+
+            if (allocated(par%time_add)) deallocate(par%time_add)
+            call move_alloc(sched,par%time_add)
+
+        end if
+
+        n = size(par%time_add)
 
         if (n .gt. 1) then
             dt_min = minval(par%time_add(2:n) - par%time_add(1:n-1))

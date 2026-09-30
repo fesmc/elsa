@@ -51,7 +51,8 @@ Exactly one of the two defines the isochrone schedule. Setting both, or
 neither, is an error.
 
 With `layer_resolution`, an isochrone is laid down every `layer_resolution`
-years after the initial time, up to but excluding `time_end`. The number of
+years after the initial time, up to but excluding `time_end`. On a restart
+the schedule remains anchored on the original initial time. The number of
 scheduled isochrones is
 $\lceil (t_\mathrm{end} - t_\mathrm{init})/\mathrm{layer\_resolution} \rceil - 1$.
 
