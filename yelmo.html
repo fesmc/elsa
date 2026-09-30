@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>elsa</title>
+<title>Yelmo coupling – elsa</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -112,7 +112,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed fullcontent quarto-light">
+<body class="nav-sidebar floating nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -130,7 +130,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
@@ -157,7 +157,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="./yelmo.html"> 
+    <a class="nav-link active" href="./yelmo.html" aria-current="page"> 
 <span class="menu-text">Yelmo coupling</span></a>
   </li>  
   <li class="nav-item">
@@ -205,7 +205,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">elsa</li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Yelmo coupling</li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -218,14 +218,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#build" id="toc-build" class="nav-link active" data-scroll-target="#build">Build</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#what-yelmo-passes" id="toc-what-yelmo-passes" class="nav-link" data-scroll-target="#what-yelmo-passes">What Yelmo passes</a></li>
+  <li><a href="#the-t_dep_elsa-field" id="toc-the-t_dep_elsa-field" class="nav-link" data-scroll-target="#the-t_dep_elsa-field">The <code>t_dep_elsa</code> field</a></li>
+  <li><a href="#restart" id="toc-restart" class="nav-link" data-scroll-target="#restart">Restart</a></li>
+  <li><a href="#native-elsa-output" id="toc-native-elsa-output" class="nav-link" data-scroll-target="#native-elsa-output">Native elsa output</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/yelmo.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">elsa</h1>
-<p class="subtitle lead">An isochronal model for ice-sheet layer tracing</p>
+<h1 class="title">Yelmo coupling</h1>
+<p class="subtitle lead">elsa as the layer backend of Yelmo’s passive-tracer subsystem</p>
 </div>
 
 
@@ -242,127 +255,76 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p><strong>elsa</strong> — the Englacial Layer Simulation Architecture — advects a stack of isochronal layers through an ice-sheet domain. Its vertical axis is <em>time</em>: each layer is bounded by two isochrones, and mass does not exchange between neighbouring layers. Vertical numerical diffusion is therefore eliminated by construction. elsa is driven by a host ice-sheet model, which supplies the horizontal velocity, the ice thickness, and the surface and basal mass balance; elsa does not modify any of these fields.</p>
-<p>The method follows <a href="https://doi.org/10.1017/jog.2016.111">Born (2017)</a>, <a href="https://doi.org/10.5194/tc-15-4539-2021">Born and Robinson (2021)</a> and <a href="https://doi.org/10.5194/gmd-17-6987-2024">Rieckh et al.&nbsp;(2024)</a>. This is a reimplementation of the Bergen ELSA v2.0 rather than a fork. See <a href="./design.html">Design</a> for the departures from the published scheme, and their motivation.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The library, its public API, the NetCDF output, the restart and the full benchmark suite are all in place. elsa is coupled to Yelmo as the layer backend of its passive-tracer subsystem (see <a href="./yelmo.html">Yelmo coupling</a>).</p>
-</div>
-</div>
-<section id="where-to-look" class="level2">
-<h2 class="anchored" data-anchor-id="where-to-look">Where to look</h2>
+<p><a href="https://github.com/fesmc/yelmo">Yelmo</a> drives elsa through its passive-tracer subsystem <code>ytrc</code> (<code>src/yelmo_tracers.f90</code>). <code>ytrc</code> can run three backends side by side: an Eulerian age tracer, the Lagrangian particle model <a href="https://github.com/fesmc/tracer">tracer</a>, and elsa. Each backend fills its own deposition-time field on Yelmo’s sigma grid, and one of them is designated as the authoritative source. This page describes the elsa side of that coupling as it stands in Yelmo. The Yelmo documentation remains the reference for <code>ytrc</code> itself.</p>
+<section id="build" class="level2">
+<h2 class="anchored" data-anchor-id="build">Build</h2>
+<p>Yelmo expects an elsa checkout (or a link to one) at <code>yelmo/elsa</code>. Its Makefile builds <code>libelsa.a</code> in that checkout through the <code>elsa-static</code> target, passing on the <code>openmp</code> setting, and links it ahead of fesm-utils. Yelmox reaches the same checkout at <code>yelmo/elsa</code>. No separate installation step is needed once the checkout is in place.</p>
+<p>Yelmo also carries a copy of the defaults file at <code>yelmo/input/elsa_defaults.nml</code>, since elsa reads this file by a path relative to the run directory (see the <a href="./guide.html#the-namelist-and-its-defaults-file">user guide</a>). The copy must be updated whenever a parameter is added to or removed from elsa. Otherwise <code>elsa_init</code> stops on the first parameter that the copy does not declare.</p>
+</section>
+<section id="parameters" class="level2">
+<h2 class="anchored" data-anchor-id="parameters">Parameters</h2>
+<p>The coupling is controlled by the <code>ytrc</code> group of the Yelmo namelist.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">&amp;</span>ytrc</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    use_elsa        <span class="kw">=</span> True</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    t_dep_source    <span class="kw">=</span> <span class="st">"elsa"</span>         <span class="co">! "euler", "trc" or "elsa"</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    time_<span class="kw">end</span>        <span class="kw">=</span> <span class="fl">0.0</span>            <span class="co">! [yr] end of the experiment</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    elsa_nml        <span class="kw">=</span> <span class="st">"par/elsa.nml"</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    elsa_group      <span class="kw">=</span> <span class="st">"elsa"</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">/</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
 <thead>
 <tr class="header">
-<th>Page</th>
+<th>Parameter</th>
 <th>Content</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="./guide.html">User guide</a></td>
-<td>install, build, the host contract, running and restarting</td>
+<td><code>use_elsa</code></td>
+<td>runs the elsa backend</td>
 </tr>
 <tr class="even">
-<td><a href="./parameters.html">Parameters</a></td>
-<td>the namelist group, its defaults and how to choose values</td>
+<td><code>t_dep_source</code></td>
+<td>the backend that fills the authoritative <code>t_dep</code> field</td>
 </tr>
 <tr class="odd">
-<td><a href="./output.html">Output</a></td>
-<td>the output and restart files, and how to read isochrones from them</td>
+<td><code>time_end</code></td>
+<td>passed to <code>elsa_init</code> to size the layer stack</td>
 </tr>
 <tr class="even">
-<td><a href="./api.html">API</a></td>
-<td>the public routines, the state object and the kernels</td>
-</tr>
-<tr class="odd">
-<td><a href="./yelmo.html">Yelmo coupling</a></td>
-<td>how Yelmo drives elsa through <code>ytrc</code></td>
-</tr>
-<tr class="even">
-<td><a href="./design.html">Design</a></td>
-<td>the departures from the published v2.0 scheme</td>
+<td><code>elsa_nml</code>, <code>elsa_group</code></td>
+<td>the file and the group from which elsa reads its own parameters</td>
 </tr>
 </tbody>
 </table>
+<p>Two settings need attention. First, <code>time_end</code> defaults to 0 and must be set to the end time of the run, on Yelmo’s time axis in years. elsa stops at init if it is not later than the start time. Second, the elsa group must keep <code>grid_factor = 1</code>. Yelmo checks this at init and stops otherwise, since the mapping described below is done column by column on a shared grid.</p>
 </section>
-<section id="the-interface" class="level2">
-<h2 class="anchored" data-anchor-id="the-interface">The interface</h2>
-<p>A host model needs one module and three calls:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> elsa</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">type(elsa_class)</span> <span class="dt">::</span> els</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy")</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_update(els,time,H_ice,ux,uy,smb,bmb)   ! every host timestep</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_end(els)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>elsa_update</code> receives an absolute time, computes its own coupling interval, decides internally whether an update is due, and stores its own previous-step ice thickness. The host therefore calls it unconditionally and manages none of elsa’s internal state. Host fields may be supplied in single or double precision; elsa converts them at the boundary. The <code>stagger</code> argument declares where the host’s velocity samples sit — <code>"acx_acy"</code> for staggered faces (as in Yelmo), or <code>"aa"</code> for cell-centred.</p>
+<section id="what-yelmo-passes" class="level2">
+<h2 class="anchored" data-anchor-id="what-yelmo-passes">What Yelmo passes</h2>
+<p>At init, Yelmo passes its cell-centre axes, its <code>zeta_aa</code> levels and the ice thickness, with <code>stagger = "acx_acy"</code>. At every Yelmo time step it calls</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_update(trc%elsa,time,tpo%now%H_ice,dyn%now%ux,dyn%now%uy, &amp;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                 tpo<span class="op">%</span>now<span class="op">%</span>smb,tpo<span class="op">%</span>now<span class="op">%</span>bmb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>with the arguments converted to double precision. The velocities are Yelmo’s native three-dimensional <code>ux</code> and <code>uy</code> on the acx and acy nodes, so nothing is destaggered. elsa decides internally whether an update is due, according to <code>dt_coupling</code>.</p>
+<p>elsa integrates the mass balance and the velocities over every Yelmo time step, and applies their mean over the coupling period (see the <a href="./guide.html#calling-sequence">user guide</a>). The fields passed after a step are taken to hold over that step, which is the case for <code>tpo%now%smb</code> and <code>tpo%now%bmb</code>.</p>
 </section>
-<section id="what-is-new-relative-to-v2.0" class="level2">
-<h2 class="anchored" data-anchor-id="what-is-new-relative-to-v2.0">What is new relative to v2.0</h2>
-<div class="pkg-grid">
-<section id="correct-upwinding" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="correct-upwinding">Correct upwinding</h3>
-<p>Each cell face is upwinded on its own velocity. v2.0 selected the direction for both x-faces from the sign of one, which produced a negative entry on the matrix diagonal in convergent cells and caused the solve to diverge. Three stability guards existed only to mask this behaviour; all have been removed. See <a href="./benchmarks/physics.html">physics</a>.</p>
+<section id="the-t_dep_elsa-field" class="level2">
+<h2 class="anchored" data-anchor-id="the-t_dep_elsa-field">The <code>t_dep_elsa</code> field</h2>
+<p>After each update, Yelmo maps the layer stack onto its sigma grid as a deposition-time field <code>t_dep_elsa(xc,yc,zeta)</code>. For each column, the layer interfaces from the top of the initialization layers to the surface define a set of knots in height, and the corresponding deposition times define the knots in time. The deposition time at each sigma level is then interpolated linearly between the knots.</p>
+<p>Two conventions of this mapping should be known. The surface knot carries the time of the last elsa update. All ice below the oldest isochrone, i.e., within the initialization layers, is assigned the initial time of elsa, since its true age is unknown. The field is thus a lower bound on age in that part of the column.</p>
+<p>If <code>t_dep_source = "elsa"</code>, <code>t_dep_elsa</code> is copied to the authoritative <code>t_dep</code> field, from which Yelmo diagnoses the depth of the isochrones listed in <code>time_iso</code> (<code>depth_iso</code>). Both <code>t_dep_elsa</code> and <code>depth_iso</code> are available as Yelmo output variables.</p>
 </section>
-<section id="no-linear-solver" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="no-linear-solver">No linear solver</h3>
-<p>The advection is now explicit and sub-stepped, so there is no LIS and no system solve. The only dependency of elsa is fesm-utils. v2.0 required LIS, which the user had to build and locate.</p>
+<section id="restart" class="level2">
+<h2 class="anchored" data-anchor-id="restart">Restart</h2>
+<p>Yelmo writes elsa’s restart as a sidecar file next to its own restart file, with <code>_elsa</code> inserted before the extension (e.g., <code>yelmo_restart.nc</code> is accompanied by <code>yelmo_restart_elsa.nc</code>). On a restarted run, Yelmo derives the same sidecar name from its restart path and passes it to <code>elsa_init</code>.</p>
+<p>The rules given in the <a href="./guide.html#restart">user guide</a> apply. In particular, elsa extends its schedule and its stack if <code>time_end</code> of the restarted run lies beyond that of the original run. Each segment of an experiment thus only needs its own end time.</p>
 </section>
-<section id="robust-interpolation" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="robust-interpolation">Robust interpolation</h3>
-<p>Any host grid is mapped onto elsa’s grid through one separable, exact stencil, which is built once at initialization. The parameter <code>grid_factor</code> may take any real value ≥ 1, and is no longer restricted to an integer divisor. See <a href="./benchmarks/interp.html">interp</a>.</p>
-</section>
-<section id="restart" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="restart">Restart</h3>
-<p>A run that is stopped and restarted is bit-identical to the run that never stopped. v2.0 could not restart at all. See <a href="./benchmarks/greenland.html">greenland</a>.</p>
-</section>
-</div>
-</section>
-<section id="benchmarks" class="level2">
-<h2 class="anchored" data-anchor-id="benchmarks">Benchmarks</h2>
-<p>Every claim above is checked directly. <code>make check</code> runs the Fortran benchmarks, which assert structural properties and exit non-zero on failure; <code>make validate</code> then runs the Julia analysis, which checks the physics against closed-form solutions and produces the figures.</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Benchmark</th>
-<th>What it establishes</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="./benchmarks/physics.html">physics</a></td>
-<td>advection is stable, positive and mass-conserving at any CFL</td>
-</tr>
-<tr class="even">
-<td><a href="./benchmarks/interp.html">interp</a></td>
-<td>the grid maps are exact</td>
-</tr>
-<tr class="odd">
-<td><a href="./benchmarks/column.html">column</a></td>
-<td>isochrones follow the Nye analytic solution</td>
-</tr>
-<tr class="even">
-<td><a href="./benchmarks/greenland.html">greenland</a></td>
-<td>elsa runs on a real 3D ice sheet, and restarts exactly</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="install" class="level2">
-<h2 class="anchored" data-anchor-id="install">Install</h2>
-<p>elsa is a <a href="https://github.com/fesmc/configme">configme</a> package:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install elsa <span class="at">--only</span>     <span class="co"># elsa + fesm-utils</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="native-elsa-output" class="level2">
+<h2 class="anchored" data-anchor-id="native-elsa-output">Native elsa output</h2>
+<p>The <code>t_dep_elsa</code> field is a diagnostic on Yelmo’s grid. The layer stack itself lives in <code>ylmo%trc%elsa</code>, and can be written in elsa’s own format with <code>elsa_write_init</code> and <code>elsa_write_step</code> from the driver program (see <a href="./output.html">Output</a>).</p>
 
 
 </section>
@@ -773,4 +735,4 @@ Note
 
 
 
-<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/yelmo.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>

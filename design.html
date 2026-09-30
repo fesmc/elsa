@@ -45,7 +45,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-4bc5be01c2d65b4ed28e24e5192a5bc4.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-7769c04541ead5cc9ef5ac528d4cd327.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-5670cb898449ec630f8b99a19f639e83.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -126,6 +126,33 @@ window.Quarto = {
   <li class="nav-item">
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./guide.html"> 
+<span class="menu-text">User guide</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-reference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Reference</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-reference">    
+        <li>
+    <a class="dropdown-item" href="./parameters.html">
+ <span class="dropdown-text">Parameters</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./output.html">
+ <span class="dropdown-text">Output and restart files</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./api.html">
+ <span class="dropdown-text">API</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="./yelmo.html"> 
+<span class="menu-text">Yelmo coupling</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link active" href="./design.html" aria-current="page"> 
@@ -298,9 +325,9 @@ F(i-½) = max(u(i-½),0)·d(i-1) + min(u(i-½),0)·d(i)
 </section>
 <section id="the-update-sequence" class="level2">
 <h2 class="anchored" data-anchor-id="the-update-sequence">The update sequence</h2>
-<p><code>elsa_update</code> receives an absolute time and does nothing unless a coupling period has elapsed. When it fires, the sequence is:</p>
+<p><code>elsa_update</code> receives an absolute time. On every call it integrates the host’s smb, bmb and velocities over the interval since the previous call. It does nothing further unless a coupling period has elapsed. When it fires, the sequence is:</p>
 <ol type="1">
-<li>Map <span class="math inline">\(H_\mathrm{ice}\)</span>, smb, bmb and the velocities onto elsa’s grid.</li>
+<li>Divide the integrals by the elapsed time, and map <span class="math inline">\(H_\mathrm{ice}\)</span> and the period-mean smb, bmb and velocities onto elsa’s grid.</li>
 <li>Normalize the layer stack onto <span class="math inline">\(H_\mathrm{ice, prev}\)</span> — the host thickness on which the incoming velocities were computed.</li>
 <li>Add smb<span class="math inline">\(\cdot\)</span>dt to the top layer and bmb<span class="math inline">\(\cdot\)</span>dt to the bottom, exhausting layers in turn where the balance is negative.</li>
 <li>Accumulate <code>dsum</code>, then take the layer-mean velocity at every face.</li>
@@ -309,9 +336,15 @@ F(i-½) = max(u(i-½),0)·d(i-1) + min(u(i-½),0)·d(i)
 <li>Normalize onto <span class="math inline">\(H_\mathrm{ice}\)</span>. Horizontal layer advection does not enforce the host’s mass conservation, so this step applies the drift correction. Relative layer thicknesses are unchanged.</li>
 <li>Lay down any isochrone whose time has been reached.</li>
 </ol>
-<p>Steps 2 and 6 are where elsa’s vertical motion originates. elsa never computes a vertical velocity: adding accumulation on top and renormalizing the column multiplies every layer height by <span class="math inline">\(H/(H + a \cdot dt)\)</span>, which in the limit <span class="math inline">\(dt \to 0\)</span> is Nye’s uniform vertical strain. <code>test_column.x</code> asserts both the discrete result (exact to <span class="math inline">\(5 \times 10^{-15}\)</span>) and its first-order convergence onto <span class="math inline">\(z = H \exp(-a \cdot t / H)\)</span>.</p>
+<p>Steps 3 and 7 are where elsa’s vertical motion originates. elsa never computes a vertical velocity: adding accumulation on top and renormalizing the column multiplies every layer height by <span class="math inline">\(H/(H + a \cdot dt)\)</span>, which in the limit <span class="math inline">\(dt \to 0\)</span> is Nye’s uniform vertical strain. <code>test_column.x</code> asserts both the discrete result (exact to <span class="math inline">\(5 \times 10^{-15}\)</span>) and its first-order convergence onto <span class="math inline">\(z = H \exp(-a \cdot t / H)\)</span>.</p>
 <p>elsa owns <code>H_ice_prev</code> and the isochrone schedule. v2.0 required the driver to manage the previous ice thickness across two lines 180 apart in <code>yelmox_elsa.f90</code>, and to wrap the call in its own <code>its_time</code> check.</p>
 <p>Where <code>layer_resolution &lt; dt_coupling</code>, more than one isochrone falls inside a coupling period. v2.0 rejected such a configuration at init; elsa instead lays down each isochrone in turn — the additional layers simply receive no accumulation — and issues a warning at init.</p>
+<p>A layer is laid down at the first update at or after its scheduled time, and its deposition time <code>t_dep</code> records the time of that update rather than the scheduled one. The base of the layer is the ice surface at that update, so this is the age that the layer boundary actually carries.</p>
+<section id="time-mean-forcing" class="level3">
+<h3 class="anchored" data-anchor-id="time-mean-forcing">Time-mean forcing</h3>
+<p>The update applies the mean of the host’s forcing over the coupling period. v2.0 applied the fields of the final instant over the whole period, as did earlier versions of this implementation. This is exact for a steady host, but it is inconsistent with the host’s mass budget whenever the mass balance varies within a period: the host’s ice thickness reflects the integrated mass balance, while the layers would receive the last value multiplied by the period. The normalization then hides the difference by rescaling all layers, which misplaces the isochrones.</p>
+<p>The integrals are kept on the host grid and mapped once per update. The maps are linear, so that mapping the mean is identical to averaging the mapped fields, at a fraction of the cost. The ice thickness is a state and is not averaged.</p>
+</section>
 <section id="emptied-columns" class="level3">
 <h3 class="anchored" data-anchor-id="emptied-columns">Emptied columns</h3>
 <p>Surface ablation removes ice from the top layer downward and stops when the column runs out; it cannot remove ice that is not there. Where <span class="math inline">\(-\mathrm{smb}
@@ -361,31 +394,32 @@ F(i-½) = max(u(i-½),0)·d(i-1) + min(u(i-½),0)·d(i)
 </section>
 <section id="precision" class="level2">
 <h2 class="anchored" data-anchor-id="precision">Precision</h2>
-<p>Internally, <code>wp = dp</code>. Layer thicknesses are summed over a stack of order <span class="math inline">\(10^3\)</span> layers, and are renormalized against the host ice thickness every coupling period across <span class="math inline">\(O(10^5)\)</span> yr. Run time is dominated by the linear solve rather than by array traffic, so the wider type is nearly free.</p>
+<p>Internally, <code>wp = dp</code>. Layer thicknesses are summed over a stack of order <span class="math inline">\(10^3\)</span> layers, and are renormalized against the host ice thickness every coupling period across <span class="math inline">\(O(10^5)\)</span> yr. The restart round-trip is also asserted to be bit-identical, which a single-precision state would make harder to interpret. The cost of the wider type is a doubling of the memory of the layer arrays, which is acceptable for a stack of this size.</p>
 <p>Host fields are accepted as <code>real(sp)</code> or <code>real(dp)</code> through generic interfaces and converted at the boundary, so the host never casts. Yelmo’s <code>wp</code> is currently single; this decouples elsa from that choice.</p>
 </section>
 <section id="dependencies" class="level2">
 <h2 class="anchored" data-anchor-id="dependencies">Dependencies</h2>
 <ul>
-<li><strong>fesm-utils</strong> — <code>ncio</code>, <code>nml</code>, <code>staggering</code>, <code>coords</code> (<code>interp1D</code>, <code>interp2D</code>, <code>conservative</code>). Nothing is vendored that fesm-utils already provides.</li>
-<li><strong>LIS</strong> — vendored and built by fesm-utils, so elsa needs no system-wide install. Sources that <code>#include "lisf.h"</code> are named <code>.F90</code> so that gfortran and ifx both preprocess them without a compiler-specific flag.</li>
+<li><strong>fesm-utils</strong> — <code>ncio</code> for NetCDF input and output, and <code>nml</code> for the namelist (<code>nml_read</code>, <code>nml_validate</code>). These are the only two modules that elsa uses. NetCDF itself enters only at link time, through <code>ncio</code>.</li>
+<li><strong>LIS</strong> is not a dependency. The advection is explicit, so no linear system is assembled or solved (see the time discretization above). The <code>coords</code> and <code>staggering</code> modules of fesm-utils are not used either (see “Why not coords”).</li>
 </ul>
 </section>
 <section id="deliberate-omissions" class="level2">
 <h2 class="anchored" data-anchor-id="deliberate-omissions">Deliberate omissions</h2>
 <ul>
-<li><strong>The dye tracer</strong> (<code>tracer_iso</code>) is not carried over. In v2.0 it was passed unallocated into the advection routine whenever <code>use_dye_tracer</code> was false. It will return as a tested feature with its own benchmark.</li>
+<li><strong>The dye tracer</strong> (<code>tracer_iso</code>) is not carried over. In v2.0 it was passed unallocated into the advection routine whenever <code>use_dye_tracer</code> was false. It is not implemented here. If it returns, it should do so as a tested feature with its own benchmark.</li>
 <li><strong><code>misc_1</code></strong>, a debug array written to output, is deleted.</li>
 <li><strong>Restart</strong> is new. v2.0 could not restart at all: <code>elsa_dealloc</code> freed seven of the nine arrays that <code>elsa_init</code> allocates, so a second <code>elsa_init</code> on the same object aborted on an already-allocated array.</li>
 </ul>
 </section>
 <section id="restart" class="level2">
 <h2 class="anchored" data-anchor-id="restart">Restart</h2>
-<p><code>elsa_restart_write</code> stores only what cannot be reconstructed: <code>d_iso</code>, <code>H_ice_prev</code>, <code>time</code>, <code>n_top</code>, <code>i_add</code>, and the isochrone schedule <code>time_add</code>. <code>dsum_iso</code> is derived from <code>d_iso</code>, and the velocities and mass balance are remapped from the host on every update.</p>
-<p>Two details matter, and the round-trip test would fail without either:</p>
+<p><code>elsa_restart_write</code> writes the full state object, so that the file also serves as a single-slice diagnostic snapshot. Only the part that cannot be reconstructed is read back: <code>d_iso</code>, <code>H_ice_prev</code>, <code>t_dep</code>, <code>time</code>, <code>n_top</code>, <code>i_add</code>, <code>n_reseed_total</code>, <code>n_layers_init</code>, the isochrone schedule <code>time_add</code>, and the forcing integrals with the time they reach to (<code>smb_acc</code>, <code>bmb_acc</code>, <code>ux_acc</code>, <code>uy_acc</code>, <code>time_acc</code>). The integrals allow a restart to be written between two updates. <code>dsum_iso</code> is derived from <code>d_iso</code>, and the velocities and mass balance are remapped from the host on every update, so restoring them would have no effect.</p>
+<p>Three details matter, and the round-trip test would fail without the first two:</p>
 <ul>
-<li><code>d_iso</code> and <code>H_ice_prev</code> are written in <strong>double</strong> precision, unlike the diagnostic output of <code>elsa_write_step</code>, which is single. A restart that loses bits does not reproduce the run that it continues.</li>
+<li><code>d_iso</code>, <code>H_ice_prev</code>, <code>t_dep</code> and the forcing integrals are written in <strong>double</strong> precision, unlike the diagnostic fields, which are single. A restart that loses bits does not reproduce the run that it continues.</li>
 <li><code>time_add</code> travels in the restart file, rather than being regenerated from <code>layer_resolution</code>. Rebuilding it from the restart time would shift every subsequent isochrone.</li>
+<li>The schedule in the file is extended, never rebuilt. If the <code>time_end</code> passed to the restarted <code>elsa_init</code> lies beyond the carried schedule, the isochrones between the restart time and <code>time_end</code> are appended and the stack is allocated for the longer schedule. The regular schedule remains anchored on the original initial time, which is recovered from <code>t_dep</code>, so that a run split into segments lays down the same isochrones as one continuous run. An appended isochrone that falls on the restart time itself is laid down at init.</li>
 </ul>
 <p>The grid on which the restart was written must match the grid onto which it is read — dimensions, axes and <code>zeta</code>. A mismatch is a hard error, rather than something to interpolate away silently.</p>
 <p><code>test_greenland.x</code> asserts that a run that is stopped, written and restarted is <strong>bit-identical</strong> to the run that never stopped. This is the only check strong enough to catch a piece of state being reconstructed rather than carried.</p>

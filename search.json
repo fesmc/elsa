@@ -116,7 +116,7 @@
     "href": "design.html#the-update-sequence",
     "title": "Design",
     "section": "The update sequence",
-    "text": "The update sequence\nelsa_update receives an absolute time and does nothing unless a coupling period has elapsed. When it fires, the sequence is:\n\nMap \\(H_\\mathrm{ice}\\), smb, bmb and the velocities onto elsa’s grid.\nNormalize the layer stack onto \\(H_\\mathrm{ice, prev}\\) — the host thickness on which the incoming velocities were computed.\nAdd smb\\(\\cdot\\)dt to the top layer and bmb\\(\\cdot\\)dt to the bottom, exhausting layers in turn where the balance is negative.\nAccumulate dsum, then take the layer-mean velocity at every face.\nAdvect each layer independently.\nReseed any column that elsa has emptied but in which the host still has ice (see below).\nNormalize onto \\(H_\\mathrm{ice}\\). Horizontal layer advection does not enforce the host’s mass conservation, so this step applies the drift correction. Relative layer thicknesses are unchanged.\nLay down any isochrone whose time has been reached.\n\nSteps 2 and 6 are where elsa’s vertical motion originates. elsa never computes a vertical velocity: adding accumulation on top and renormalizing the column multiplies every layer height by \\(H/(H + a \\cdot dt)\\), which in the limit \\(dt \\to 0\\) is Nye’s uniform vertical strain. test_column.x asserts both the discrete result (exact to \\(5 \\times 10^{-15}\\)) and its first-order convergence onto \\(z = H \\exp(-a \\cdot t / H)\\).\nelsa owns H_ice_prev and the isochrone schedule. v2.0 required the driver to manage the previous ice thickness across two lines 180 apart in yelmox_elsa.f90, and to wrap the call in its own its_time check.\nWhere layer_resolution &lt; dt_coupling, more than one isochrone falls inside a coupling period. v2.0 rejected such a configuration at init; elsa instead lays down each isochrone in turn — the additional layers simply receive no accumulation — and issues a warning at init.\n\nEmptied columns\nSurface ablation removes ice from the top layer downward and stops when the column runs out; it cannot remove ice that is not there. Where \\(-\\mathrm{smb}\n\\cdot dt\\) exceeds the whole column, the column is left at exactly zero and the normalization has nothing to rescale: the column is then dead for the rest of the run. v2.0 has the same hole — normalise_d zeroes a column whose sum is not positive, silently and permanently.\nOn the 16 km Greenland benchmark, 85 of 7204 ice cells satisfy \\(-\\mathrm{smb}\n\\cdot dt &gt; H\\) at dt_coupling = 50 yr. All are thin margin cells (3–244 m, against a median ice thickness of 1718 m). Advection refills most of them, and around nine per step do not recover.\nelsa returns the host’s ice to those columns, in layer 1, at the bed. Ablation eats a column from the top, so the last ice standing before exhaustion is the deepest. Placing the survivor there is the consistent continuation of the process that destroyed the column, and is where basal freeze-on already deposits ice. Reseeding at the top would instead claim that the ice is young, which contradicts the process that removed it.\nThis is defined behaviour for an under-determined state — elsa cannot date ice that it believes it has removed — rather than a correction to a bug. It is counted rather than silent: now%n_reseed (last update) and now%n_reseed_total, together with a note at first occurrence. A large or growing per-step count means that dt_coupling is too long, or that the forcing is inconsistent.\n\n\nThe face column\nThe layer-mean velocity requires the column geometry at each face. elsa takes this as the average of the two cell columns that the face separates, so that dsum_face(n_top) = H_face holds by construction. This includes the margin, where one neighbour is ice-free and the face thickness is half that of the ice-covered cell. Mapping the host’s \\(H\\) directly onto a face grid with its own conservative weights would not stay consistent with elsa’s layer stack."
+    "text": "The update sequence\nelsa_update receives an absolute time. On every call it integrates the host’s smb, bmb and velocities over the interval since the previous call. It does nothing further unless a coupling period has elapsed. When it fires, the sequence is:\n\nDivide the integrals by the elapsed time, and map \\(H_\\mathrm{ice}\\) and the period-mean smb, bmb and velocities onto elsa’s grid.\nNormalize the layer stack onto \\(H_\\mathrm{ice, prev}\\) — the host thickness on which the incoming velocities were computed.\nAdd smb\\(\\cdot\\)dt to the top layer and bmb\\(\\cdot\\)dt to the bottom, exhausting layers in turn where the balance is negative.\nAccumulate dsum, then take the layer-mean velocity at every face.\nAdvect each layer independently.\nReseed any column that elsa has emptied but in which the host still has ice (see below).\nNormalize onto \\(H_\\mathrm{ice}\\). Horizontal layer advection does not enforce the host’s mass conservation, so this step applies the drift correction. Relative layer thicknesses are unchanged.\nLay down any isochrone whose time has been reached.\n\nSteps 3 and 7 are where elsa’s vertical motion originates. elsa never computes a vertical velocity: adding accumulation on top and renormalizing the column multiplies every layer height by \\(H/(H + a \\cdot dt)\\), which in the limit \\(dt \\to 0\\) is Nye’s uniform vertical strain. test_column.x asserts both the discrete result (exact to \\(5 \\times 10^{-15}\\)) and its first-order convergence onto \\(z = H \\exp(-a \\cdot t / H)\\).\nelsa owns H_ice_prev and the isochrone schedule. v2.0 required the driver to manage the previous ice thickness across two lines 180 apart in yelmox_elsa.f90, and to wrap the call in its own its_time check.\nWhere layer_resolution &lt; dt_coupling, more than one isochrone falls inside a coupling period. v2.0 rejected such a configuration at init; elsa instead lays down each isochrone in turn — the additional layers simply receive no accumulation — and issues a warning at init.\nA layer is laid down at the first update at or after its scheduled time, and its deposition time t_dep records the time of that update rather than the scheduled one. The base of the layer is the ice surface at that update, so this is the age that the layer boundary actually carries.\n\nTime-mean forcing\nThe update applies the mean of the host’s forcing over the coupling period. v2.0 applied the fields of the final instant over the whole period, as did earlier versions of this implementation. This is exact for a steady host, but it is inconsistent with the host’s mass budget whenever the mass balance varies within a period: the host’s ice thickness reflects the integrated mass balance, while the layers would receive the last value multiplied by the period. The normalization then hides the difference by rescaling all layers, which misplaces the isochrones.\nThe integrals are kept on the host grid and mapped once per update. The maps are linear, so that mapping the mean is identical to averaging the mapped fields, at a fraction of the cost. The ice thickness is a state and is not averaged.\n\n\nEmptied columns\nSurface ablation removes ice from the top layer downward and stops when the column runs out; it cannot remove ice that is not there. Where \\(-\\mathrm{smb}\n\\cdot dt\\) exceeds the whole column, the column is left at exactly zero and the normalization has nothing to rescale: the column is then dead for the rest of the run. v2.0 has the same hole — normalise_d zeroes a column whose sum is not positive, silently and permanently.\nOn the 16 km Greenland benchmark, 85 of 7204 ice cells satisfy \\(-\\mathrm{smb}\n\\cdot dt &gt; H\\) at dt_coupling = 50 yr. All are thin margin cells (3–244 m, against a median ice thickness of 1718 m). Advection refills most of them, and around nine per step do not recover.\nelsa returns the host’s ice to those columns, in layer 1, at the bed. Ablation eats a column from the top, so the last ice standing before exhaustion is the deepest. Placing the survivor there is the consistent continuation of the process that destroyed the column, and is where basal freeze-on already deposits ice. Reseeding at the top would instead claim that the ice is young, which contradicts the process that removed it.\nThis is defined behaviour for an under-determined state — elsa cannot date ice that it believes it has removed — rather than a correction to a bug. It is counted rather than silent: now%n_reseed (last update) and now%n_reseed_total, together with a note at first occurrence. A large or growing per-step count means that dt_coupling is too long, or that the forcing is inconsistent.\n\n\nThe face column\nThe layer-mean velocity requires the column geometry at each face. elsa takes this as the average of the two cell columns that the face separates, so that dsum_face(n_top) = H_face holds by construction. This includes the margin, where one neighbour is ice-free and the face thickness is half that of the ice-covered cell. Mapping the host’s \\(H\\) directly onto a face grid with its own conservative weights would not stay consistent with elsa’s layer stack."
   },
   {
     "objectID": "design.html#vertical-interpolation-of-the-host-velocity",
@@ -137,28 +137,98 @@
     "href": "design.html#precision",
     "title": "Design",
     "section": "Precision",
-    "text": "Precision\nInternally, wp = dp. Layer thicknesses are summed over a stack of order \\(10^3\\) layers, and are renormalized against the host ice thickness every coupling period across \\(O(10^5)\\) yr. Run time is dominated by the linear solve rather than by array traffic, so the wider type is nearly free.\nHost fields are accepted as real(sp) or real(dp) through generic interfaces and converted at the boundary, so the host never casts. Yelmo’s wp is currently single; this decouples elsa from that choice."
+    "text": "Precision\nInternally, wp = dp. Layer thicknesses are summed over a stack of order \\(10^3\\) layers, and are renormalized against the host ice thickness every coupling period across \\(O(10^5)\\) yr. The restart round-trip is also asserted to be bit-identical, which a single-precision state would make harder to interpret. The cost of the wider type is a doubling of the memory of the layer arrays, which is acceptable for a stack of this size.\nHost fields are accepted as real(sp) or real(dp) through generic interfaces and converted at the boundary, so the host never casts. Yelmo’s wp is currently single; this decouples elsa from that choice."
   },
   {
     "objectID": "design.html#dependencies",
     "href": "design.html#dependencies",
     "title": "Design",
     "section": "Dependencies",
-    "text": "Dependencies\n\nfesm-utils — ncio, nml, staggering, coords (interp1D, interp2D, conservative). Nothing is vendored that fesm-utils already provides.\nLIS — vendored and built by fesm-utils, so elsa needs no system-wide install. Sources that #include \"lisf.h\" are named .F90 so that gfortran and ifx both preprocess them without a compiler-specific flag."
+    "text": "Dependencies\n\nfesm-utils — ncio for NetCDF input and output, and nml for the namelist (nml_read, nml_validate). These are the only two modules that elsa uses. NetCDF itself enters only at link time, through ncio.\nLIS is not a dependency. The advection is explicit, so no linear system is assembled or solved (see the time discretization above). The coords and staggering modules of fesm-utils are not used either (see “Why not coords”)."
   },
   {
     "objectID": "design.html#deliberate-omissions",
     "href": "design.html#deliberate-omissions",
     "title": "Design",
     "section": "Deliberate omissions",
-    "text": "Deliberate omissions\n\nThe dye tracer (tracer_iso) is not carried over. In v2.0 it was passed unallocated into the advection routine whenever use_dye_tracer was false. It will return as a tested feature with its own benchmark.\nmisc_1, a debug array written to output, is deleted.\nRestart is new. v2.0 could not restart at all: elsa_dealloc freed seven of the nine arrays that elsa_init allocates, so a second elsa_init on the same object aborted on an already-allocated array."
+    "text": "Deliberate omissions\n\nThe dye tracer (tracer_iso) is not carried over. In v2.0 it was passed unallocated into the advection routine whenever use_dye_tracer was false. It is not implemented here. If it returns, it should do so as a tested feature with its own benchmark.\nmisc_1, a debug array written to output, is deleted.\nRestart is new. v2.0 could not restart at all: elsa_dealloc freed seven of the nine arrays that elsa_init allocates, so a second elsa_init on the same object aborted on an already-allocated array."
   },
   {
     "objectID": "design.html#restart",
     "href": "design.html#restart",
     "title": "Design",
     "section": "Restart",
-    "text": "Restart\nelsa_restart_write stores only what cannot be reconstructed: d_iso, H_ice_prev, time, n_top, i_add, and the isochrone schedule time_add. dsum_iso is derived from d_iso, and the velocities and mass balance are remapped from the host on every update.\nTwo details matter, and the round-trip test would fail without either:\n\nd_iso and H_ice_prev are written in double precision, unlike the diagnostic output of elsa_write_step, which is single. A restart that loses bits does not reproduce the run that it continues.\ntime_add travels in the restart file, rather than being regenerated from layer_resolution. Rebuilding it from the restart time would shift every subsequent isochrone.\n\nThe grid on which the restart was written must match the grid onto which it is read — dimensions, axes and zeta. A mismatch is a hard error, rather than something to interpolate away silently.\ntest_greenland.x asserts that a run that is stopped, written and restarted is bit-identical to the run that never stopped. This is the only check strong enough to catch a piece of state being reconstructed rather than carried."
+    "text": "Restart\nelsa_restart_write writes the full state object, so that the file also serves as a single-slice diagnostic snapshot. Only the part that cannot be reconstructed is read back: d_iso, H_ice_prev, t_dep, time, n_top, i_add, n_reseed_total, n_layers_init, the isochrone schedule time_add, and the forcing integrals with the time they reach to (smb_acc, bmb_acc, ux_acc, uy_acc, time_acc). The integrals allow a restart to be written between two updates. dsum_iso is derived from d_iso, and the velocities and mass balance are remapped from the host on every update, so restoring them would have no effect.\nThree details matter, and the round-trip test would fail without the first two:\n\nd_iso, H_ice_prev, t_dep and the forcing integrals are written in double precision, unlike the diagnostic fields, which are single. A restart that loses bits does not reproduce the run that it continues.\ntime_add travels in the restart file, rather than being regenerated from layer_resolution. Rebuilding it from the restart time would shift every subsequent isochrone.\nThe schedule in the file is extended, never rebuilt. If the time_end passed to the restarted elsa_init lies beyond the carried schedule, the isochrones between the restart time and time_end are appended and the stack is allocated for the longer schedule. The regular schedule remains anchored on the original initial time, which is recovered from t_dep, so that a run split into segments lays down the same isochrones as one continuous run. An appended isochrone that falls on the restart time itself is laid down at init.\n\nThe grid on which the restart was written must match the grid onto which it is read — dimensions, axes and zeta. A mismatch is a hard error, rather than something to interpolate away silently.\ntest_greenland.x asserts that a run that is stopped, written and restarted is bit-identical to the run that never stopped. This is the only check strong enough to catch a piece of state being reconstructed rather than carried."
+  },
+  {
+    "objectID": "api.html",
+    "href": "api.html",
+    "title": "API",
+    "section": "",
+    "text": "A host model uses the module elsa and nothing else. This module re-exports every type and procedure that a host needs. The modules behind it are described at the end of this page, since the benchmarks call them directly."
+  },
+  {
+    "objectID": "api.html#module-layout",
+    "href": "api.html#module-layout",
+    "title": "API",
+    "section": "Module layout",
+    "text": "Module layout\n\n\n\n\n\n\n\n\nModule\nFile\nRole\n\n\n\n\nelsa\nsrc/elsa.f90\nthe public interface and the update sequence\n\n\nelsa_defs\nsrc/elsa_defs.f90\nthe derived types, allocation and deallocation\n\n\nelsa_physics\nsrc/elsa_physics.f90\nthe layer kernels: advection, normalization, mass balance\n\n\nelsa_interp\nsrc/elsa_interp.f90\nthe horizontal maps and the vertical velocity average\n\n\nelsa_io\nsrc/elsa_io.f90\nNetCDF output and restart\n\n\nelsa_precision\nsrc/elsa_precision.f90\nthe kinds sp, dp, wp and the constants\n\n\n\nThe kernels in elsa_physics and elsa_interp take and return plain arrays. They hold no state, open no file and know no derived type, which makes them directly testable and safe to call inside an OpenMP region."
+  },
+  {
+    "objectID": "api.html#public-routines",
+    "href": "api.html#public-routines",
+    "title": "API",
+    "section": "Public routines",
+    "text": "Public routines\n\nelsa_init\ncall elsa_init(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger [,restart])\n\n\n\n\n\n\n\n\nArgument\nType\nContent\n\n\n\n\nels\ntype(elsa_class), inout\nthe elsa object\n\n\nfilename, group\ncharacter\nthe namelist file and the group to read\n\n\ntime\nreal, yr\nthe initial time\n\n\ntime_end\nreal, yr\nthe end of the run, later than time, which sizes the layer stack\n\n\nx, y\nreal (nx), (ny), m\nthe host’s cell-centre axes\n\n\nzeta\nreal (nz)\nthe host’s sigma levels, 0 at the bed to 1 at the surface\n\n\nH_ice\nreal (nx,ny), m\nthe initial ice thickness\n\n\nstagger\ncharacter\n\"acx_acy\" or \"aa\", the location of the host velocities\n\n\nrestart\ncharacter, optional\na restart file; \"None\" or empty means a cold start\n\n\n\nThe routine reads the parameters, builds the isochrone schedule and the grid maps, allocates the state and fills the initial layers. It ends by printing a summary of the configuration. All real arguments are either single or double precision. elsa_init may be called again on an object after elsa_end.\n\n\nelsa_update\ncall elsa_update(els,time,H_ice,ux,uy,smb,bmb)\n\n\n\n\n\n\n\n\nArgument\nType\nContent\n\n\n\n\ntime\nreal, yr\nthe current absolute model time\n\n\nH_ice\nreal (nx,ny), m\nice thickness\n\n\nux, uy\nreal (nx,ny,nz), m yr\\(^{-1}\\)\nhorizontal velocity on the host’s sigma levels\n\n\nsmb, bmb\nreal (nx,ny), m yr\\(^{-1}\\)\nsurface and basal mass balance, positive for gain\n\n\n\nEvery call adds the interval since the previous call to the time integrals of ux, uy, smb and bmb, without converting whole arrays in either precision. The routine then returns unless dt_coupling has elapsed since the last update. Otherwise it performs the update sequence given under Design. It stops the program if an isochrone is due and the layer stack is exhausted, which cannot happen with a schedule built at init.\n\n\nelsa_end\ncall elsa_end(els)\nDeallocates the state, the maps and the isochrone schedule.\n\n\nelsa_write_init and elsa_write_step\ncall elsa_write_init(els,filename,time)\ncall elsa_write_step(els,filename,time,n)\nelsa_write_init creates the output file and its axes. elsa_write_step writes the state as slice n (1-based) along the time axis. Both take time in the working precision wp, which is double. See Output.\n\n\nelsa_restart_write\ncall elsa_restart_write(els,filename)\nWrites the complete state to a new file. Reading is done through the restart argument of elsa_init.\n\n\nOther public names\nelsa_version is a character constant holding the version string. The kinds sp, dp and wp are re-exported, as are the types below."
+  },
+  {
+    "objectID": "api.html#the-elsa-object",
+    "href": "api.html#the-elsa-object",
+    "title": "API",
+    "section": "The elsa object",
+    "text": "The elsa object\ntype(elsa_class) has three components: par (the parameters), now (the state) and map (the grid and the interpolation weights). A host may read any of them. It should not modify them.\n\nels%par\nThe seven namelist parameters (see Parameters), and two derived quantities:\n\n\n\n\n\n\n\nField\nContent\n\n\n\n\nn_layers\ntotal layers allocated: n_layers_init + size(time_add) + 1\n\n\ntime_add(:)\nthe times at which a new isochrone is laid down, in years\n\n\n\n\n\nels%now\n\n\n\n\n\n\n\n\n\nField\nShape\nUnits\nContent\n\n\n\n\ntime\nscalar\nyr\ntime of the last completed update\n\n\ntime_acc\nscalar\nyr\ntime of the last call, up to which the forcing is integrated\n\n\nn_top\nscalar\n1\nindex of the topmost active layer\n\n\ni_add\nscalar\n1\nnext entry of par%time_add to be applied\n\n\nn_reseed\nscalar\n1\ncolumns reseeded at the bed in the last update\n\n\nn_reseed_total\nscalar\n1\ncolumns reseeded since init\n\n\nt_dep\n(n_layers)\nyr\ndeposition time of each layer; MV if undated\n\n\nd_iso\n(nx,ny,n_layers)\nm\nlayer thickness, cell centres\n\n\ndsum_iso\n(nx,ny,n_layers)\nm\nheight of each layer top above the bed\n\n\nux_iso\n(nx,ny,n_layers)\nm yr\\(^{-1}\\)\nlayer-mean velocity, acx faces\n\n\nuy_iso\n(nx,ny,n_layers)\nm yr\\(^{-1}\\)\nlayer-mean velocity, acy faces\n\n\nH_ice\n(nx,ny)\nm\nhost ice thickness at this update\n\n\nH_ice_prev\n(nx,ny)\nm\nhost ice thickness at the previous update\n\n\nsmb, bmb\n(nx,ny)\nm yr\\(^{-1}\\)\nhost mass balance, mean over the last coupling period\n\n\nux_lev, uy_lev\n(nx,ny,nz)\nm yr\\(^{-1}\\)\nperiod-mean host velocity on elsa’s faces and the host’s sigma levels\n\n\nsmb_acc, bmb_acc\nhost (nx,ny)\nm\nhost mass balance integrated since the last update\n\n\nux_acc, uy_acc\nhost (nx,ny,nz)\nm\nhost velocity integrated since the last update\n\n\n\nHere nx and ny are the dimensions of elsa’s grid, which equal those of the host only for grid_factor = 1. The layer convention is described under Output.\n\n\nels%map\n\n\n\n\n\n\n\nField\nContent\n\n\n\n\nnx, ny, nz\ndimensions of elsa’s grid and the number of host levels\n\n\ndx, dy\ngrid spacing of elsa’s grid, in m\n\n\nx(:), y(:)\ncell-centre axes of elsa’s grid, in m\n\n\nzeta(:)\nthe host’s sigma levels\n\n\nnx_src, ny_src, x_src(:), y_src(:)\nthe host grid\n\n\ncons_x, cons_y\nconservative weights, host cells to elsa cells\n\n\nux_x, ux_y, uy_x, uy_y\nbilinear weights, host velocity nodes to elsa faces"
+  },
+  {
+    "objectID": "api.html#kernels",
+    "href": "api.html#kernels",
+    "title": "API",
+    "section": "Kernels",
+    "text": "Kernels\nThe following routines are not exported by elsa, but are public in their own modules and are exercised by the physics and interp benchmarks.\n\nelsa_physics\n\n\n\n\n\n\n\nRoutine\nAction\n\n\n\n\ncalc_n_substeps(ux,uy,dx,dy,dt,cfl)\nnumber of substeps that keep the explicit update positive\n\n\nadvect_layer(d,ux,uy,dx,dy,dt,cfl,fx,fy)\nadvects one layer over dt, sub-stepped; fx, fy are scratch arrays\n\n\nnormalize_layers(d,H_ice,n_top)\nrescales each column to sum to H_ice\n\n\nreseed_empty_columns(d,H_ice,n_top,n_reseed)\nreturns the host’s ice to emptied columns, in layer 1\n\n\ncalc_dsum(dsum,d,n_top)\ncumulative layer heights\n\n\napply_smb(d,dm,n_top)\nadds accumulation to the top layer, or removes ablation from the top downward\n\n\napply_bmb(d,dm,n_top,allow_pos_bmb)\nremoves basal melt from the bottom upward, or adds freeze-on to layer 1\n\n\n\nIn these routines ux(i,j) is the velocity on the face between cells (i,j) and (i+1,j), and uy(i,j) on the face between (i,j) and (i,j+1). The last face in each direction is not read. dm is a thickness change in m, i.e., the mass balance multiplied by the time step.\n\n\nelsa_interp\n\n\n\n\n\n\n\nRoutine\nAction\n\n\n\n\nelsa_map_init(map,x_src,y_src,zeta,stagger,grid_factor)\ndefines elsa’s grid and builds all weights\n\n\nelsa_map_end(map)\ndeallocates the map\n\n\nmap_scalar(map,f_src,f)\nconservative remap of a cell-centred field\n\n\nmap_velocity(map,ux_src,uy_src,ux,uy)\nbilinear map of the velocity onto elsa’s faces, level by level\n\n\ninterp_u_column(u_layer,u_lev,zeta,H,dsum)\nthickness-average of a velocity profile over each layer of one column"
+  },
+  {
+    "objectID": "api.html#error-handling",
+    "href": "api.html#error-handling",
+    "title": "API",
+    "section": "Error handling",
+    "text": "Error handling\nelsa stops the program with error stop 1 and a message naming the routine for every violation of its contract: invalid parameters, a time_end that is not later than the start time, a non-uniform axis, an invalid zeta, an unknown stagger, a missing file, an isochrone time that is not later than the initial time, or a restart file that does not match the grid. It issues warnings, without stopping, for isochrones that are closer together than the coupling period and for a restart time that differs from the host time."
+  },
+  {
+    "objectID": "parameters.html",
+    "href": "parameters.html",
+    "title": "Parameters",
+    "section": "",
+    "text": "elsa reads seven parameters from one namelist group. The group name is chosen by the caller of elsa_init, so that one file can hold several configurations. The defaults below are those of input/elsa_defaults.nml, which is both the fallback for any omitted parameter and the schema against which the user group is validated (see the user guide)."
+  },
+  {
+    "objectID": "parameters.html#reference",
+    "href": "parameters.html#reference",
+    "title": "Parameters",
+    "section": "Reference",
+    "text": "Reference\n\n\n\n\n\n\n\n\n\nParameter\nType\nDefault\nValid range\n\n\n\n\nn_layers_init\ninteger\n10\n\\(\\geq 1\\)\n\n\nlayer_resolution\nreal, yr\n200\n\\(&gt; 0\\), or 0 to use layer_file\n\n\nlayer_file\nstring\n\"None\"\na path, or \"None\" to use layer_resolution\n\n\ngrid_factor\nreal\n1\n\\(\\geq 1\\)\n\n\ndt_coupling\nreal, yr\n50\n\\(&gt; 0\\)\n\n\ncfl\nreal\n0.9\n\\((0, 1]\\)\n\n\nallow_pos_bmb\nlogical\nfalse\n\n\n\n\nValues outside the valid range stop the program at elsa_init.\n\nn_layers_init\nThe number of equal-thickness layers into which each ice column is divided at a cold start. These layers carry no age. They only resolve the vertical variation of the horizontal velocity within the ice that was present at the initial time, so that the deep initial ice is advected with the slow near-bed velocity rather than with the column mean. Basal melt removes these layers first, and basal freeze-on is added to the lowest one.\n\n\nlayer_resolution and layer_file\nExactly one of the two defines the isochrone schedule. Setting both, or neither, is an error.\nWith layer_resolution, an isochrone is laid down every layer_resolution years after the initial time, up to but excluding time_end. On a restart the schedule remains anchored on the original initial time. The number of scheduled isochrones is \\(\\lceil (t_\\mathrm{end} - t_\\mathrm{init})/\\mathrm{layer\\_resolution} \\rceil - 1\\).\nWith layer_file, the schedule is read from a text file with one isochrone time per line, in years, on the same time axis as the host. Blank lines are skipped. The times must be strictly increasing and later than the initial time. Times at or after time_end are skipped with a note, so that one file can serve every segment of a restarted experiment. This option allows the layers to be aligned with dated radiostratigraphic horizons.\nIn both modes, a layer is laid down at the first update at or after its scheduled time, and is stamped with the time of that update. The schedule and the host time steps should thus be chosen so that updates land on the scheduled times, if exact horizons are needed.\nIn both cases the surface at the initial time is an isochrone as well, so the number of dated isochrones is one more than the number of scheduled ones. The total number of layers allocated is n_layers_init plus the number of scheduled isochrones plus one.\nThe memory and the run time of elsa both scale linearly with the number of layers. Each layer holds four double-precision fields on elsa’s grid (d_iso, dsum_iso, ux_iso and uy_iso). At 16 km over Greenland (106 × 181 cells), 1000 layers thus need around 0.6 GB.\n\n\ngrid_factor\nelsa’s grid is the host grid coarsened by this factor, which is a real number and need not be an integer. Scalar fields are remapped conservatively and the velocities bilinearly (see interp). The cost of the advection scales roughly with the inverse cube of the grid spacing, since the number of substeps grows as the cells shrink, so grid_factor is the most effective lever on run time.\nTwo restrictions apply. A non-integer factor can leave a strip of host cells uncovered at the high edge of the domain (see the limitations). The Yelmo coupling currently requires grid_factor = 1 (see Yelmo coupling).\n\n\ndt_coupling\nThe interval between elsa updates. elsa_update returns without doing anything until this much time has elapsed since the last update.\nThe vertical thinning of the layers converges at first order in dt_coupling. At an ice divide with 3000 m of ice and an accumulation of 0.3 m yr\\(^{-1}\\), the maximum departure from the Nye solution is around 5.5 m at dt_coupling = 100 yr, and it halves when the period is halved (see column).\nA shorter coupling period does not increase the cost of the advection, since the number of substeps is set by the CFL condition over the simulated time. It does increase the cost of the horizontal maps and of the vertical velocity average, which are computed once per update. A longer period also increases the number of margin columns in which the ablation over one period exceeds the ice thickness (see Design). In practice, dt_coupling should be no longer than layer_resolution, so that every layer receives accumulation.\n\n\ncfl\nThe target for the explicit substep. For each layer and each update, the substep is chosen so that the outflow from every cell over one substep does not exceed the fraction cfl of the cell’s content. Any value in \\((0, 1]\\) keeps the layer thickness non-negative and conserves mass. Lower values increase the number of substeps proportionally, and with a first-order upwind scheme they also increase the numerical diffusion slightly. There is thus little reason to depart from the default.\n\n\nallow_pos_bmb\nControls the treatment of basal freeze-on (bmb &gt; 0). If true, the frozen-on ice is added to the lowest layer. If false, it is not added to any layer, and the subsequent normalization onto the host ice thickness distributes the corresponding thickening over the whole column in proportion to the layer thicknesses. Basal melt (bmb &lt; 0) is always removed from the bottom of the column upward, independently of this switch."
+  },
+  {
+    "objectID": "parameters.html#fixed-constants",
+    "href": "parameters.html#fixed-constants",
+    "title": "Parameters",
+    "section": "Fixed constants",
+    "text": "Fixed constants\nThree constants are set in the source rather than in the namelist.\n\n\n\n\n\n\n\n\nConstant\nValue\nMeaning\n\n\n\n\nH_ICE_MIN\n\\(10^{-6}\\) m\na column thinner than this is treated as ice-free\n\n\nMV\n\\(-9999\\)\nmissing value, used for the deposition time of undated layers\n\n\nTIME_TOL\n\\(10^{-6}\\)\nrelative slack when comparing model times"
+  },
+  {
+    "objectID": "parameters.html#example-configurations",
+    "href": "parameters.html#example-configurations",
+    "title": "Parameters",
+    "section": "Example configurations",
+    "text": "Example configurations\nThe benchmark namelists in par/ are working examples. par/test_greenland.nml holds a native-resolution group and a group with grid_factor = 2.5. par/test_column.nml holds four groups that differ only in dt_coupling."
   },
   {
     "objectID": "index.html",
@@ -166,6 +236,13 @@
     "title": "elsa",
     "section": "",
     "text": "elsa — the Englacial Layer Simulation Architecture — advects a stack of isochronal layers through an ice-sheet domain. Its vertical axis is time: each layer is bounded by two isochrones, and mass does not exchange between neighbouring layers. Vertical numerical diffusion is therefore eliminated by construction. elsa is driven by a host ice-sheet model, which supplies the horizontal velocity, the ice thickness, and the surface and basal mass balance; elsa does not modify any of these fields.\nThe method follows Born (2017), Born and Robinson (2021) and Rieckh et al. (2024). This is a reimplementation of the Bergen ELSA v2.0 rather than a fork. See Design for the departures from the published scheme, and their motivation."
+  },
+  {
+    "objectID": "index.html#where-to-look",
+    "href": "index.html#where-to-look",
+    "title": "elsa",
+    "section": "Where to look",
+    "text": "Where to look\n\n\n\nPage\nContent\n\n\n\n\nUser guide\ninstall, build, the host contract, running and restarting\n\n\nParameters\nthe namelist group, its defaults and how to choose values\n\n\nOutput\nthe output and restart files, and how to read isochrones from them\n\n\nAPI\nthe public routines, the state object and the kernels\n\n\nYelmo coupling\nhow Yelmo drives elsa through ytrc\n\n\nDesign\nthe departures from the published v2.0 scheme"
   },
   {
     "objectID": "index.html#the-interface",
@@ -194,6 +271,181 @@
     "title": "elsa",
     "section": "Install",
     "text": "Install\nelsa is a configme package:\nconfigme install elsa --only     # elsa + fesm-utils"
+  },
+  {
+    "objectID": "guide.html",
+    "href": "guide.html",
+    "title": "User guide",
+    "section": "",
+    "text": "elsa is a configme package. Its only dependency is fesm-utils, which provides the ncio and nml modules. NetCDF is needed at link time, through ncio. No linear-solver library is required.\nconfigme install elsa --only     # elsa + fesm-utils\nTo configure an existing checkout for a given machine and compiler:\ncd elsa\nconfigme -m macbook -c gfortran    # writes the repo-root Makefile\nconfigme assembles the repo-root Makefile from config/Makefile and the compiler and machine fragments, and links fesm-utils into the checkout. Both are ignored by git."
+  },
+  {
+    "objectID": "guide.html#install",
+    "href": "guide.html#install",
+    "title": "User guide",
+    "section": "",
+    "text": "elsa is a configme package. Its only dependency is fesm-utils, which provides the ncio and nml modules. NetCDF is needed at link time, through ncio. No linear-solver library is required.\nconfigme install elsa --only     # elsa + fesm-utils\nTo configure an existing checkout for a given machine and compiler:\ncd elsa\nconfigme -m macbook -c gfortran    # writes the repo-root Makefile\nconfigme assembles the repo-root Makefile from config/Makefile and the compiler and machine fragments, and links fesm-utils into the checkout. Both are ignored by git."
+  },
+  {
+    "objectID": "guide.html#build",
+    "href": "guide.html#build",
+    "title": "User guide",
+    "section": "Build",
+    "text": "Build\nmake elsa-static     # libelsa/include/libelsa.a and the .mod files\nmake all             # the library and every benchmark\nmake usage           # all targets\nTwo options can be added to any target:\n\n\n\n\n\n\n\nOption\nEffect\n\n\n\n\nopenmp=1\nthreads the layer loop, and links the OpenMP build of fesm-utils\n\n\ndebug=1\nbounds checking and floating-point traps, including underflow\n\n\ndebug=2\noptimized, with profiling output\n\n\ndebug=3\nas debug=1, without the underflow trap\n\n\n\ndebug=3 is the debugging level to use with elsa. The explicit upwind scheme lets a draining cell decay through the denormal range on its way to zero, which is IEEE-defined and harmless, but which debug=1 traps with gfortran.\nSwitching between openmp=0 and openmp=1, or between debug levels, requires a make clean first, since the object files carry no record of the flags with which they were compiled."
+  },
+  {
+    "objectID": "guide.html#check-the-installation",
+    "href": "guide.html#check-the-installation",
+    "title": "User guide",
+    "section": "Check the installation",
+    "text": "Check the installation\nmake check           # runs the four Fortran benchmarks\nmake validate        # runs check, then the Julia validation and figures\nmake check exits non-zero if any benchmark fails. make validate needs Julia, and instantiates the project in analysis/ (CairoMakie and NCDatasets) on first use. The benchmarks must be run from the repository root, since they read par/, data/ and input/ by relative path. Each benchmark is described on its own page under Benchmarks."
+  },
+  {
+    "objectID": "guide.html#the-host-contract",
+    "href": "guide.html#the-host-contract",
+    "title": "User guide",
+    "section": "The host contract",
+    "text": "The host contract\nelsa is driven by a host ice-sheet model. The host supplies the following fields on its own grid, and elsa maps them onto its grid internally.\n\n\n\n\n\n\n\n\n\nField\nShape\nUnits\nLocation\n\n\n\n\nx, y\n(nx), (ny)\nm\ncell centres, uniform and ascending\n\n\nzeta\n(nz)\n1\nsigma levels, 0 at the bed and 1 at the surface\n\n\nH_ice\n(nx,ny)\nm\ncell centres\n\n\nux, uy\n(nx,ny,nz)\nm yr\\(^{-1}\\)\nas declared by stagger\n\n\nsmb, bmb\n(nx,ny)\nm yr\\(^{-1}\\) of ice\ncell centres\n\n\ntime\nscalar\nyr\nabsolute model time\n\n\n\nThe following conditions are checked at elsa_init, and a violation stops the program with a message.\n\nThe horizontal axes must be uniformly spaced to within 0.1 % of the grid spacing. This tolerance admits axes that were stored in single precision, and rejects a stretched grid.\nzeta must be strictly ascending, with zeta(1) = 0 and zeta(nz) = 1. This is the zeta_aa convention of Yelmo. The velocity arrays must carry the same number of levels.\nstagger must be \"acx_acy\" or \"aa\". With \"acx_acy\", ux(i,j,:) sits at \\((x_i + \\Delta x/2, y_j)\\) and uy(i,j,:) at \\((x_i, y_j + \\Delta y/2)\\), as in Yelmo. With \"aa\", both sit at the cell centre.\n\nThe mass balance terms are positive for mass gain. A positive smb is accumulation and a positive bmb is basal freeze-on. All host fields may be passed in single or in double precision, but not in a mixture of the two within one call."
+  },
+  {
+    "objectID": "guide.html#calling-sequence",
+    "href": "guide.html#calling-sequence",
+    "title": "User guide",
+    "section": "Calling sequence",
+    "text": "Calling sequence\nuse elsa\n\ntype(elsa_class) :: els\n\ncall elsa_init(els,\"elsa.nml\",\"elsa\",time,time_end,xc,yc,zeta_aa,H_ice,\"acx_acy\")\n\ndo n = 1, n_steps\n    ! ... the host advances to `time` ...\n    call elsa_update(els,time,H_ice,ux,uy,smb,bmb)\nend do\n\ncall elsa_end(els)\nelsa_update is called once per host time step, unconditionally. It compares time with the time of its last update and performs an update only when a full coupling period dt_coupling has elapsed. When an update is due, the time step that elsa uses is the elapsed time, which may exceed dt_coupling if the host time steps do not divide it. The host thus manages neither the coupling interval nor the previous ice thickness.\nelsa applies the mean forcing of the coupling period. On every call, the rates smb, bmb, ux and uy are taken to hold over the interval since the previous call, and are integrated in time on the host grid. At the update, the integrals are divided by the elapsed time and mapped onto elsa’s grid. The mass that elsa adds to or removes from a column is therefore the mass that the host applied, however the mass balance varied within the period. H_ice is a state rather than a rate, and only its value at the update is used.\nThis has two consequences for the host. First, the call must be made at every host time step, since a skipped step would be assigned the fields of the next call. Second, a call that is not due is cheap but not free: it adds two three-dimensional and two two-dimensional host fields to the integrals.\ntime_end sizes the layer stack. The stack is allocated once, with n_layers_init initialization layers, one layer per scheduled isochrone and one accumulating layer on top. No isochrone is scheduled at or beyond time_end (entries of a layer_file that lie there are skipped with a note), and time_end must be later than time. If the run continues past time_end without a restart, elsa keeps running, but the top layer simply continues to accumulate and no further isochrone is laid down. A restart with a later time_end extends the schedule (see below)."
+  },
+  {
+    "objectID": "guide.html#the-namelist-and-its-defaults-file",
+    "href": "guide.html#the-namelist-and-its-defaults-file",
+    "title": "User guide",
+    "section": "The namelist and its defaults file",
+    "text": "The namelist and its defaults file\nelsa_init reads a namelist group from a file, both named by the caller. The group need only list the parameters that the run overrides. All other values are taken from the defaults file input/elsa_defaults.nml, which also acts as the schema: a parameter in the user group that does not appear in the defaults file is reported as an error, which catches misspelled names.\nThe path input/elsa_defaults.nml is relative to the directory in which the program runs. A host model must therefore carry a copy of this file in its own input/ directory, and keep it synchronized with the elsa version against which it links. The parameters are described under Parameters."
+  },
+  {
+    "objectID": "guide.html#initial-state",
+    "href": "guide.html#initial-state",
+    "title": "User guide",
+    "section": "Initial state",
+    "text": "Initial state\nAt a cold start, elsa fills each ice column with n_layers_init layers of equal thickness. These initialization layers are not isochrones, since elsa has no information on the age of the ice that is present at the start. Their deposition time is set to the missing value. The first isochrone is the surface at the initial time, and every layer above it is dated.\nAll ice that is present at initialization is thus treated as older than the initial time, with unknown internal structure. The dated part of the column grows only through accumulation during the run."
+  },
+  {
+    "objectID": "guide.html#output",
+    "href": "guide.html#output",
+    "title": "User guide",
+    "section": "Output",
+    "text": "Output\nelsa writes its own NetCDF output when the host asks for it:\ncall elsa_write_init(els,\"elsa.nc\",time)          ! once\ncall elsa_write_step(els,\"elsa.nc\",time,n)        ! n = 1, 2, ... along time\nThe output directory must exist, since NetCDF does not create it. The file contents are described under Output."
+  },
+  {
+    "objectID": "guide.html#restart",
+    "href": "guide.html#restart",
+    "title": "User guide",
+    "section": "Restart",
+    "text": "Restart\ncall elsa_restart_write(els,\"elsa_restart.nc\")\n...\ncall elsa_init(els,\"elsa.nml\",\"elsa\",time,time_end,xc,yc,zeta_aa,H_ice,\"acx_acy\", &\n               restart=\"elsa_restart.nc\")\nA restarted run is bit-identical to the run that never stopped, which test_greenland.x asserts. The following rules apply.\n\nThe layers, the isochrone schedule and the model time are taken from the file. n_layers_init in the namelist is ignored on restart.\nIf time_end lies beyond the schedule in the file, the schedule is extended with the isochrones between the restart time and time_end, from layer_resolution or layer_file, and the stack is sized accordingly. The regular schedule remains anchored on the original initial time. An experiment can thus be run in segments, each knowing only its own end time, and lays down the same isochrones as one continuous run.\nIf the earlier run continued past the end of its schedule, the scheduled times that it missed are not added afterwards. The ice of that period remains in a single layer.\ntime_end must be later than the restart time.\nA restart may be written at any time, including between two updates. The forcing integrated since the last update is stored in the file and read back.\nIf the time argument differs from the time in the file, elsa warns and uses the file’s time. The first call then spans the gap.\nThe host grid must match the one in the file, since the forcing integrals live on it.\ndt_coupling, cfl and allow_pos_bmb are read from the namelist as usual, and may be changed across a restart.\nThe grid must match: the dimensions, the axes and zeta are compared, and a mismatch stops the program. A changed grid_factor therefore fails.\nPassing restart=\"None\" or an empty string is equivalent to omitting the argument, which allows a host to pass its own restart setting through unconditionally."
+  },
+  {
+    "objectID": "guide.html#openmp",
+    "href": "guide.html#openmp",
+    "title": "User guide",
+    "section": "OpenMP",
+    "text": "OpenMP\nWith openmp=1, elsa threads the loop over layers in the advection and the loop over columns in the vertical velocity average. The layers do not exchange mass, so each thread writes a disjoint slice of the state. The result is bit-identical to the serial result at any thread count.\nOn the 16 km Greenland benchmark with 20 layers, the update takes around 0.38 s on one core and 0.15 s on eight. The speedup is bounded by the serial parts of the update (the horizontal maps and the mass balance), and improves with the number of layers."
+  },
+  {
+    "objectID": "guide.html#diagnostics-to-watch",
+    "href": "guide.html#diagnostics-to-watch",
+    "title": "User guide",
+    "section": "Diagnostics to watch",
+    "text": "Diagnostics to watch\nTwo counters in the state report the columns that elsa has emptied while the host still holds ice there (see Design). els%now%n_reseed is the count in the last update and els%now%n_reseed_total the count since initialization. elsa prints a note the first time this happens. A few columns per update at thin, strongly ablating margins are expected. A large or growing count indicates that dt_coupling is too long for the ablation rate, or that the forcing is inconsistent with the ice thickness.\nAt init, elsa also warns if two scheduled isochrones are closer together than dt_coupling. Layers that are laid down within the same update receive no accumulation and remain at zero thickness."
+  },
+  {
+    "objectID": "guide.html#limitations",
+    "href": "guide.html#limitations",
+    "title": "User guide",
+    "section": "Limitations",
+    "text": "Limitations\nThe following limitations follow from the present design. Each is a property of the code as it stands, rather than a bug.\n\nFirst-order advection. The upwind scheme is diffusive in the horizontal. A layer-thickness anomaly retains around 27 % of its peak after one solid-body revolution in the physics benchmark. The isochronal grid removes the vertical diffusion, not the horizontal one.\nUniform Cartesian grids only. elsa’s grid is a coarsening of the host grid over the same axes. Stretched or unstructured host grids are rejected.\nPartial coverage at non-integer grid_factor. elsa’s grid holds floor(nx/grid_factor) cells along x, anchored at the low edge of the host domain. A strip of host cells at the high edge is left uncovered if the ratio is not an integer. This is harmless where the domain edge is ice-free.\nFixed layer stack within a run. The stack is sized at init and is not extended during the run. It is extended on restart if time_end requires it.\nUndated initial ice. The initialization layers carry no age.\nNo dye tracer. The tracer_iso field of v2.0 is not implemented."
+  },
+  {
+    "objectID": "output.html",
+    "href": "output.html",
+    "title": "Output",
+    "section": "",
+    "text": "elsa writes two kinds of NetCDF file through ncio: a time-resolved output file, and a restart file that holds one instant. Both live on elsa’s own grid, which differs from the host grid if grid_factor is not 1."
+  },
+  {
+    "objectID": "output.html#the-layer-convention",
+    "href": "output.html#the-layer-convention",
+    "title": "Output",
+    "section": "The layer convention",
+    "text": "The layer convention\nThe vertical axis of elsa is the layer index, and reading the files requires the following convention.\n\nLayer 1 is at the bed. Layer n_top is the topmost active layer, which is the one currently receiving accumulation. Layers above n_top have been allocated but not yet laid down, and hold zero thickness.\nd_iso(i,j,k) is the thickness of layer k. dsum_iso(i,j,k) is the height of the top of layer k above the bed, so that dsum_iso(i,j,n_top) is the ice thickness.\nThe deposition time of layer k (t_dep in the state and in the restart file, layer_time in the output file) is the time of the update at which the layer was opened. This is the first update at or after the scheduled isochrone time, so it equals the scheduled time only if an update lands on it, and is otherwise later by less than one coupling period. It is the age label of the isochrone at the base of layer k. The ice inside layer k was deposited between layer_time(k) and layer_time(k+1).\nThe initialization layers, 1 to n_layers_init, carry the missing value \\(-9999\\) as deposition time, as do the layers above n_top. The missing value is written as a plain number and not as a _FillValue attribute.\n\nThe height above the bed of the isochrone deposited at layer_time(k) is therefore dsum_iso(i,j,k-1), and its depth below the surface is H_ice(i,j) - dsum_iso(i,j,k-1). The oldest dated isochrone is the base of layer n_layers_init + 1, which is the ice surface at the initial time."
+  },
+  {
+    "objectID": "output.html#the-output-file",
+    "href": "output.html#the-output-file",
+    "title": "Output",
+    "section": "The output file",
+    "text": "The output file\nelsa_write_init creates the file and its axes, and each call to elsa_write_step appends one time slice.\n\n\n\nDimension\nSize\nUnits\nContent\n\n\n\n\nxc, yc\nelsa grid\nm\ncell-centre coordinates\n\n\nlayer\nn_layers\n1\nlayer index, 1 at the bed\n\n\ntime\nunlimited\nyears\nmodel time of each slice\n\n\n\n\n\n\n\n\n\n\n\n\nVariable\nDimensions\nUnits\nContent\n\n\n\n\nlayer_time\nlayer\nyears\ndeposition time of each layer\n\n\nn_top\ntime\n1\nindex of the topmost active layer\n\n\nH_ice\nxc, yc, time\nm\nice thickness on elsa’s grid\n\n\nd_iso\nxc, yc, layer, time\nm\nlayer thickness\n\n\ndsum_iso\nxc, yc, layer, time\nm\nheight of the layer top above the bed\n\n\nux_iso\nxc, yc, layer, time\nm yr\\(^{-1}\\)\nlayer-mean velocity in x, on acx faces\n\n\nuy_iso\nxc, yc, layer, time\nm yr\\(^{-1}\\)\nlayer-mean velocity in y, on acy faces\n\n\n\nThree properties of this file should be kept in mind.\nFirst, layer_time has no time dimension. It is rewritten at every step from the state, so the file always holds the deposition times of the layers laid down so far. A slice at an earlier time must be read together with its own n_top, since layers above it did not yet exist at that time.\nSecond, the three-dimensional fields are written in single precision, since they dominate the file size. At 3000 m of ice this limits the resolution of dsum_iso to around \\(2 \\times 10^{-4}\\) m, which is irrelevant for analysis but means that the output file cannot be used to restart.\nThird, the velocities are located on elsa’s staggered faces, not at the cell centres. ux_iso(i,j,k) sits at xc(i) + dx/2. The last face in each direction carries zero flux and is written as zero.\nEvery slice holds all n_layers layers, including those not yet laid down. A long run with many layers and frequent output therefore produces a large file, and the output interval should be chosen accordingly."
+  },
+  {
+    "objectID": "output.html#the-restart-file",
+    "href": "output.html#the-restart-file",
+    "title": "Output",
+    "section": "The restart file",
+    "text": "The restart file\nelsa_restart_write writes the complete state at one instant. The file also serves as a diagnostic snapshot, but only part of it is read back.\n\n\n\nVariable\nDimensions\nPrecision\nRead back\n\n\n\n\ntime\none\ndouble\nyes\n\n\ntime_acc\none\ndouble\nyes\n\n\nn_top, i_add\none\ninteger\nyes\n\n\nn_reseed_total\none\ninteger\nyes\n\n\nn_reseed\none\ninteger\nno\n\n\nn_layers_init\none\ninteger\nyes\n\n\ntime_add\nisochrone\ndouble\nyes\n\n\nd_iso\nxc, yc, layer\ndouble\nyes\n\n\nH_ice_prev\nxc, yc\ndouble\nyes\n\n\nt_dep\nlayer\ndouble\nyes\n\n\nsmb_acc, bmb_acc\nxc_src, yc_src\ndouble\nyes\n\n\nux_acc, uy_acc\nxc_src, yc_src, zeta\ndouble\nyes\n\n\ndsum_iso, ux_iso, uy_iso\nxc, yc, layer\nsingle\nno\n\n\nH_ice, smb, bmb\nxc, yc\nsingle\nno\n\n\nux_lev, uy_lev\nxc, yc, zeta\nsingle\nno\n\n\n\nThe axes xc, yc and zeta are read back as well, and are compared with the current grid. time is the time of the last update and time_acc the time at which the file was written. The _acc fields are the forcing integrated between the two, on the host grid (xc_src, yc_src). They are zero if the file was written on an update. smb, bmb, ux_lev and uy_lev are the means over the last completed coupling period. time_add is the full isochrone schedule and i_add the index of its next entry. time_add is absent if no isochrone was scheduled. The reasons for carrying each item are given under Design."
+  },
+  {
+    "objectID": "output.html#reading-isochrones",
+    "href": "output.html#reading-isochrones",
+    "title": "Output",
+    "section": "Reading isochrones",
+    "text": "Reading isochrones\nThe Julia helpers in analysis/elsa_analysis.jl implement the convention above. ElsaRun(path) opens an output file and converts the missing deposition times to NaN, isochrone_layers returns the layers that have a dated base, and isochrone_height returns the ages and the heights of all isochrones in one column at one time index.\nThe depth of one isochrone can also be obtained directly. The following example extracts the depth below the surface of the isochrone that was laid down at t_iso, at the last time slice.\nusing NCDatasets\n\nds   = NCDataset(\"output/GRL-16KM/elsa.nc\")\nlt   = ds[\"layer_time\"][:]\nit   = length(ds[\"time\"])\nH    = ds[\"H_ice\"][:, :, it]\ndsum = ds[\"dsum_iso\"][:, :, :, it]\n\nt_iso = 1000.0\nk     = findfirst(&gt;=(t_iso), lt)       # the layer whose base is this isochrone\n\ndepth = H .- dsum[:, :, k-1]\ndepth[H .&lt;= 0] .= NaN\nThe age of this isochrone at time t is t - lt[k]. A comparison with observed radiostratigraphy requires the depth of a given age, so the isochrone schedule should contain the dated horizons of interest, either through a suitable layer_resolution or through a layer_file."
+  },
+  {
+    "objectID": "yelmo.html",
+    "href": "yelmo.html",
+    "title": "Yelmo coupling",
+    "section": "",
+    "text": "Yelmo drives elsa through its passive-tracer subsystem ytrc (src/yelmo_tracers.f90). ytrc can run three backends side by side: an Eulerian age tracer, the Lagrangian particle model tracer, and elsa. Each backend fills its own deposition-time field on Yelmo’s sigma grid, and one of them is designated as the authoritative source. This page describes the elsa side of that coupling as it stands in Yelmo. The Yelmo documentation remains the reference for ytrc itself."
+  },
+  {
+    "objectID": "yelmo.html#build",
+    "href": "yelmo.html#build",
+    "title": "Yelmo coupling",
+    "section": "Build",
+    "text": "Build\nYelmo expects an elsa checkout (or a link to one) at yelmo/elsa. Its Makefile builds libelsa.a in that checkout through the elsa-static target, passing on the openmp setting, and links it ahead of fesm-utils. Yelmox reaches the same checkout at yelmo/elsa. No separate installation step is needed once the checkout is in place.\nYelmo also carries a copy of the defaults file at yelmo/input/elsa_defaults.nml, since elsa reads this file by a path relative to the run directory (see the user guide). The copy must be updated whenever a parameter is added to or removed from elsa. Otherwise elsa_init stops on the first parameter that the copy does not declare."
+  },
+  {
+    "objectID": "yelmo.html#parameters",
+    "href": "yelmo.html#parameters",
+    "title": "Yelmo coupling",
+    "section": "Parameters",
+    "text": "Parameters\nThe coupling is controlled by the ytrc group of the Yelmo namelist.\n&ytrc\n    use_elsa        = True\n    t_dep_source    = \"elsa\"         ! \"euler\", \"trc\" or \"elsa\"\n    time_end        = 0.0            ! [yr] end of the experiment\n    elsa_nml        = \"par/elsa.nml\"\n    elsa_group      = \"elsa\"\n/\n\n\n\n\n\n\n\nParameter\nContent\n\n\n\n\nuse_elsa\nruns the elsa backend\n\n\nt_dep_source\nthe backend that fills the authoritative t_dep field\n\n\ntime_end\npassed to elsa_init to size the layer stack\n\n\nelsa_nml, elsa_group\nthe file and the group from which elsa reads its own parameters\n\n\n\nTwo settings need attention. First, time_end defaults to 0 and must be set to the end time of the run, on Yelmo’s time axis in years. elsa stops at init if it is not later than the start time. Second, the elsa group must keep grid_factor = 1. Yelmo checks this at init and stops otherwise, since the mapping described below is done column by column on a shared grid."
+  },
+  {
+    "objectID": "yelmo.html#what-yelmo-passes",
+    "href": "yelmo.html#what-yelmo-passes",
+    "title": "Yelmo coupling",
+    "section": "What Yelmo passes",
+    "text": "What Yelmo passes\nAt init, Yelmo passes its cell-centre axes, its zeta_aa levels and the ice thickness, with stagger = \"acx_acy\". At every Yelmo time step it calls\ncall elsa_update(trc%elsa,time,tpo%now%H_ice,dyn%now%ux,dyn%now%uy, &\n                 tpo%now%smb,tpo%now%bmb)\nwith the arguments converted to double precision. The velocities are Yelmo’s native three-dimensional ux and uy on the acx and acy nodes, so nothing is destaggered. elsa decides internally whether an update is due, according to dt_coupling.\nelsa integrates the mass balance and the velocities over every Yelmo time step, and applies their mean over the coupling period (see the user guide). The fields passed after a step are taken to hold over that step, which is the case for tpo%now%smb and tpo%now%bmb."
+  },
+  {
+    "objectID": "yelmo.html#the-t_dep_elsa-field",
+    "href": "yelmo.html#the-t_dep_elsa-field",
+    "title": "Yelmo coupling",
+    "section": "The t_dep_elsa field",
+    "text": "The t_dep_elsa field\nAfter each update, Yelmo maps the layer stack onto its sigma grid as a deposition-time field t_dep_elsa(xc,yc,zeta). For each column, the layer interfaces from the top of the initialization layers to the surface define a set of knots in height, and the corresponding deposition times define the knots in time. The deposition time at each sigma level is then interpolated linearly between the knots.\nTwo conventions of this mapping should be known. The surface knot carries the time of the last elsa update. All ice below the oldest isochrone, i.e., within the initialization layers, is assigned the initial time of elsa, since its true age is unknown. The field is thus a lower bound on age in that part of the column.\nIf t_dep_source = \"elsa\", t_dep_elsa is copied to the authoritative t_dep field, from which Yelmo diagnoses the depth of the isochrones listed in time_iso (depth_iso). Both t_dep_elsa and depth_iso are available as Yelmo output variables."
+  },
+  {
+    "objectID": "yelmo.html#restart",
+    "href": "yelmo.html#restart",
+    "title": "Yelmo coupling",
+    "section": "Restart",
+    "text": "Restart\nYelmo writes elsa’s restart as a sidecar file next to its own restart file, with _elsa inserted before the extension (e.g., yelmo_restart.nc is accompanied by yelmo_restart_elsa.nc). On a restarted run, Yelmo derives the same sidecar name from its restart path and passes it to elsa_init.\nThe rules given in the user guide apply. In particular, elsa extends its schedule and its stack if time_end of the restarted run lies beyond that of the original run. Each segment of an experiment thus only needs its own end time."
+  },
+  {
+    "objectID": "yelmo.html#native-elsa-output",
+    "href": "yelmo.html#native-elsa-output",
+    "title": "Yelmo coupling",
+    "section": "Native elsa output",
+    "text": "Native elsa output\nThe t_dep_elsa field is a diagnostic on Yelmo’s grid. The layer stack itself lives in ylmo%trc%elsa, and can be written in elsa’s own format with elsa_write_init and elsa_write_step from the driver program (see Output)."
   },
   {
     "objectID": "benchmarks/column.html",

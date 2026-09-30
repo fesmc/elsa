@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>elsa</title>
+<title>User guide – elsa</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -109,10 +109,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed fullcontent quarto-light">
+<body class="nav-sidebar floating nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -130,11 +159,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./guide.html"> 
+    <a class="nav-link active" href="./guide.html" aria-current="page"> 
 <span class="menu-text">User guide</span></a>
   </li>  
   <li class="nav-item dropdown ">
@@ -205,7 +234,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">elsa</li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">User guide</li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -218,14 +247,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#install" id="toc-install" class="nav-link active" data-scroll-target="#install">Install</a></li>
+  <li><a href="#build" id="toc-build" class="nav-link" data-scroll-target="#build">Build</a></li>
+  <li><a href="#check-the-installation" id="toc-check-the-installation" class="nav-link" data-scroll-target="#check-the-installation">Check the installation</a></li>
+  <li><a href="#the-host-contract" id="toc-the-host-contract" class="nav-link" data-scroll-target="#the-host-contract">The host contract</a></li>
+  <li><a href="#calling-sequence" id="toc-calling-sequence" class="nav-link" data-scroll-target="#calling-sequence">Calling sequence</a></li>
+  <li><a href="#the-namelist-and-its-defaults-file" id="toc-the-namelist-and-its-defaults-file" class="nav-link" data-scroll-target="#the-namelist-and-its-defaults-file">The namelist and its defaults file</a></li>
+  <li><a href="#initial-state" id="toc-initial-state" class="nav-link" data-scroll-target="#initial-state">Initial state</a></li>
+  <li><a href="#output" id="toc-output" class="nav-link" data-scroll-target="#output">Output</a></li>
+  <li><a href="#restart" id="toc-restart" class="nav-link" data-scroll-target="#restart">Restart</a></li>
+  <li><a href="#openmp" id="toc-openmp" class="nav-link" data-scroll-target="#openmp">OpenMP</a></li>
+  <li><a href="#diagnostics-to-watch" id="toc-diagnostics-to-watch" class="nav-link" data-scroll-target="#diagnostics-to-watch">Diagnostics to watch</a></li>
+  <li><a href="#limitations" id="toc-limitations" class="nav-link" data-scroll-target="#limitations">Limitations</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/guide.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">elsa</h1>
-<p class="subtitle lead">An isochronal model for ice-sheet layer tracing</p>
+<h1 class="title">User guide</h1>
+<p class="subtitle lead">Installing, building and driving elsa from a host model</p>
 </div>
 
 
@@ -242,127 +290,202 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p><strong>elsa</strong> — the Englacial Layer Simulation Architecture — advects a stack of isochronal layers through an ice-sheet domain. Its vertical axis is <em>time</em>: each layer is bounded by two isochrones, and mass does not exchange between neighbouring layers. Vertical numerical diffusion is therefore eliminated by construction. elsa is driven by a host ice-sheet model, which supplies the horizontal velocity, the ice thickness, and the surface and basal mass balance; elsa does not modify any of these fields.</p>
-<p>The method follows <a href="https://doi.org/10.1017/jog.2016.111">Born (2017)</a>, <a href="https://doi.org/10.5194/tc-15-4539-2021">Born and Robinson (2021)</a> and <a href="https://doi.org/10.5194/gmd-17-6987-2024">Rieckh et al.&nbsp;(2024)</a>. This is a reimplementation of the Bergen ELSA v2.0 rather than a fork. See <a href="./design.html">Design</a> for the departures from the published scheme, and their motivation.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The library, its public API, the NetCDF output, the restart and the full benchmark suite are all in place. elsa is coupled to Yelmo as the layer backend of its passive-tracer subsystem (see <a href="./yelmo.html">Yelmo coupling</a>).</p>
-</div>
-</div>
-<section id="where-to-look" class="level2">
-<h2 class="anchored" data-anchor-id="where-to-look">Where to look</h2>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Page</th>
-<th>Content</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="./guide.html">User guide</a></td>
-<td>install, build, the host contract, running and restarting</td>
-</tr>
-<tr class="even">
-<td><a href="./parameters.html">Parameters</a></td>
-<td>the namelist group, its defaults and how to choose values</td>
-</tr>
-<tr class="odd">
-<td><a href="./output.html">Output</a></td>
-<td>the output and restart files, and how to read isochrones from them</td>
-</tr>
-<tr class="even">
-<td><a href="./api.html">API</a></td>
-<td>the public routines, the state object and the kernels</td>
-</tr>
-<tr class="odd">
-<td><a href="./yelmo.html">Yelmo coupling</a></td>
-<td>how Yelmo drives elsa through <code>ytrc</code></td>
-</tr>
-<tr class="even">
-<td><a href="./design.html">Design</a></td>
-<td>the departures from the published v2.0 scheme</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="the-interface" class="level2">
-<h2 class="anchored" data-anchor-id="the-interface">The interface</h2>
-<p>A host model needs one module and three calls:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> elsa</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">type(elsa_class)</span> <span class="dt">::</span> els</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy")</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_update(els,time,H_ice,ux,uy,smb,bmb)   ! every host timestep</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_end(els)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>elsa_update</code> receives an absolute time, computes its own coupling interval, decides internally whether an update is due, and stores its own previous-step ice thickness. The host therefore calls it unconditionally and manages none of elsa’s internal state. Host fields may be supplied in single or double precision; elsa converts them at the boundary. The <code>stagger</code> argument declares where the host’s velocity samples sit — <code>"acx_acy"</code> for staggered faces (as in Yelmo), or <code>"aa"</code> for cell-centred.</p>
-</section>
-<section id="what-is-new-relative-to-v2.0" class="level2">
-<h2 class="anchored" data-anchor-id="what-is-new-relative-to-v2.0">What is new relative to v2.0</h2>
-<div class="pkg-grid">
-<section id="correct-upwinding" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="correct-upwinding">Correct upwinding</h3>
-<p>Each cell face is upwinded on its own velocity. v2.0 selected the direction for both x-faces from the sign of one, which produced a negative entry on the matrix diagonal in convergent cells and caused the solve to diverge. Three stability guards existed only to mask this behaviour; all have been removed. See <a href="./benchmarks/physics.html">physics</a>.</p>
-</section>
-<section id="no-linear-solver" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="no-linear-solver">No linear solver</h3>
-<p>The advection is now explicit and sub-stepped, so there is no LIS and no system solve. The only dependency of elsa is fesm-utils. v2.0 required LIS, which the user had to build and locate.</p>
-</section>
-<section id="robust-interpolation" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="robust-interpolation">Robust interpolation</h3>
-<p>Any host grid is mapped onto elsa’s grid through one separable, exact stencil, which is built once at initialization. The parameter <code>grid_factor</code> may take any real value ≥ 1, and is no longer restricted to an integer divisor. See <a href="./benchmarks/interp.html">interp</a>.</p>
-</section>
-<section id="restart" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="restart">Restart</h3>
-<p>A run that is stopped and restarted is bit-identical to the run that never stopped. v2.0 could not restart at all. See <a href="./benchmarks/greenland.html">greenland</a>.</p>
-</section>
-</div>
-</section>
-<section id="benchmarks" class="level2">
-<h2 class="anchored" data-anchor-id="benchmarks">Benchmarks</h2>
-<p>Every claim above is checked directly. <code>make check</code> runs the Fortran benchmarks, which assert structural properties and exit non-zero on failure; <code>make validate</code> then runs the Julia analysis, which checks the physics against closed-form solutions and produces the figures.</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Benchmark</th>
-<th>What it establishes</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="./benchmarks/physics.html">physics</a></td>
-<td>advection is stable, positive and mass-conserving at any CFL</td>
-</tr>
-<tr class="even">
-<td><a href="./benchmarks/interp.html">interp</a></td>
-<td>the grid maps are exact</td>
-</tr>
-<tr class="odd">
-<td><a href="./benchmarks/column.html">column</a></td>
-<td>isochrones follow the Nye analytic solution</td>
-</tr>
-<tr class="even">
-<td><a href="./benchmarks/greenland.html">greenland</a></td>
-<td>elsa runs on a real 3D ice sheet, and restarts exactly</td>
-</tr>
-</tbody>
-</table>
-</section>
 <section id="install" class="level2">
 <h2 class="anchored" data-anchor-id="install">Install</h2>
-<p>elsa is a <a href="https://github.com/fesmc/configme">configme</a> package:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install elsa <span class="at">--only</span>     <span class="co"># elsa + fesm-utils</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>elsa is a <a href="https://github.com/fesmc/configme">configme</a> package. Its only dependency is <a href="https://github.com/fesmc/fesm-utils">fesm-utils</a>, which provides the <code>ncio</code> and <code>nml</code> modules. NetCDF is needed at link time, through <code>ncio</code>. No linear-solver library is required.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install elsa <span class="at">--only</span>     <span class="co"># elsa + fesm-utils</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To configure an existing checkout for a given machine and compiler:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> elsa</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> <span class="at">-m</span> macbook <span class="at">-c</span> gfortran    <span class="co"># writes the repo-root Makefile</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>configme assembles the repo-root <code>Makefile</code> from <code>config/Makefile</code> and the compiler and machine fragments, and links <code>fesm-utils</code> into the checkout. Both are ignored by git.</p>
+</section>
+<section id="build" class="level2">
+<h2 class="anchored" data-anchor-id="build">Build</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> elsa-static     <span class="co"># libelsa/include/libelsa.a and the .mod files</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> all             <span class="co"># the library and every benchmark</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> usage           <span class="co"># all targets</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Two options can be added to any target:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>openmp=1</code></td>
+<td>threads the layer loop, and links the OpenMP build of fesm-utils</td>
+</tr>
+<tr class="even">
+<td><code>debug=1</code></td>
+<td>bounds checking and floating-point traps, including underflow</td>
+</tr>
+<tr class="odd">
+<td><code>debug=2</code></td>
+<td>optimized, with profiling output</td>
+</tr>
+<tr class="even">
+<td><code>debug=3</code></td>
+<td>as <code>debug=1</code>, without the underflow trap</td>
+</tr>
+</tbody>
+</table>
+<p><code>debug=3</code> is the debugging level to use with elsa. The explicit upwind scheme lets a draining cell decay through the denormal range on its way to zero, which is IEEE-defined and harmless, but which <code>debug=1</code> traps with gfortran.</p>
+<p>Switching between <code>openmp=0</code> and <code>openmp=1</code>, or between debug levels, requires a <code>make clean</code> first, since the object files carry no record of the flags with which they were compiled.</p>
+</section>
+<section id="check-the-installation" class="level2">
+<h2 class="anchored" data-anchor-id="check-the-installation">Check the installation</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check           <span class="co"># runs the four Fortran benchmarks</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> validate        <span class="co"># runs check, then the Julia validation and figures</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>make check</code> exits non-zero if any benchmark fails. <code>make validate</code> needs Julia, and instantiates the project in <code>analysis/</code> (CairoMakie and NCDatasets) on first use. The benchmarks must be run from the repository root, since they read <code>par/</code>, <code>data/</code> and <code>input/</code> by relative path. Each benchmark is described on its own page under <em>Benchmarks</em>.</p>
+</section>
+<section id="the-host-contract" class="level2">
+<h2 class="anchored" data-anchor-id="the-host-contract">The host contract</h2>
+<p>elsa is driven by a host ice-sheet model. The host supplies the following fields on its own grid, and elsa maps them onto its grid internally.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Shape</th>
+<th>Units</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>x</code>, <code>y</code></td>
+<td><code>(nx)</code>, <code>(ny)</code></td>
+<td>m</td>
+<td>cell centres, uniform and ascending</td>
+</tr>
+<tr class="even">
+<td><code>zeta</code></td>
+<td><code>(nz)</code></td>
+<td>1</td>
+<td>sigma levels, 0 at the bed and 1 at the surface</td>
+</tr>
+<tr class="odd">
+<td><code>H_ice</code></td>
+<td><code>(nx,ny)</code></td>
+<td>m</td>
+<td>cell centres</td>
+</tr>
+<tr class="even">
+<td><code>ux</code>, <code>uy</code></td>
+<td><code>(nx,ny,nz)</code></td>
+<td>m yr<span class="math inline">\(^{-1}\)</span></td>
+<td>as declared by <code>stagger</code></td>
+</tr>
+<tr class="odd">
+<td><code>smb</code>, <code>bmb</code></td>
+<td><code>(nx,ny)</code></td>
+<td>m yr<span class="math inline">\(^{-1}\)</span> of ice</td>
+<td>cell centres</td>
+</tr>
+<tr class="even">
+<td><code>time</code></td>
+<td>scalar</td>
+<td>yr</td>
+<td>absolute model time</td>
+</tr>
+</tbody>
+</table>
+<p>The following conditions are checked at <code>elsa_init</code>, and a violation stops the program with a message.</p>
+<ul>
+<li>The horizontal axes must be uniformly spaced to within 0.1 % of the grid spacing. This tolerance admits axes that were stored in single precision, and rejects a stretched grid.</li>
+<li><code>zeta</code> must be strictly ascending, with <code>zeta(1) = 0</code> and <code>zeta(nz) = 1</code>. This is the <code>zeta_aa</code> convention of Yelmo. The velocity arrays must carry the same number of levels.</li>
+<li><code>stagger</code> must be <code>"acx_acy"</code> or <code>"aa"</code>. With <code>"acx_acy"</code>, <code>ux(i,j,:)</code> sits at <span class="math inline">\((x_i + \Delta x/2, y_j)\)</span> and <code>uy(i,j,:)</code> at <span class="math inline">\((x_i, y_j + \Delta y/2)\)</span>, as in Yelmo. With <code>"aa"</code>, both sit at the cell centre.</li>
+</ul>
+<p>The mass balance terms are positive for mass gain. A positive <code>smb</code> is accumulation and a positive <code>bmb</code> is basal freeze-on. All host fields may be passed in single or in double precision, but not in a mixture of the two within one call.</p>
+</section>
+<section id="calling-sequence" class="level2">
+<h2 class="anchored" data-anchor-id="calling-sequence">Calling sequence</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> elsa</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="dt">type(elsa_class)</span> <span class="dt">::</span> els</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy")</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">do</span> n <span class="kw">=</span> <span class="dv">1</span>, n_steps</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">! ... the host advances to `time` ...</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">call</span> elsa_update(els,time,H_ice,ux,uy,smb,bmb)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end do</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_end(els)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>elsa_update</code> is called once per host time step, unconditionally. It compares <code>time</code> with the time of its last update and performs an update only when a full coupling period <code>dt_coupling</code> has elapsed. When an update is due, the time step that elsa uses is the elapsed time, which may exceed <code>dt_coupling</code> if the host time steps do not divide it. The host thus manages neither the coupling interval nor the previous ice thickness.</p>
+<p>elsa applies the mean forcing of the coupling period. On every call, the rates <code>smb</code>, <code>bmb</code>, <code>ux</code> and <code>uy</code> are taken to hold over the interval since the previous call, and are integrated in time on the host grid. At the update, the integrals are divided by the elapsed time and mapped onto elsa’s grid. The mass that elsa adds to or removes from a column is therefore the mass that the host applied, however the mass balance varied within the period. <code>H_ice</code> is a state rather than a rate, and only its value at the update is used.</p>
+<p>This has two consequences for the host. First, the call must be made at every host time step, since a skipped step would be assigned the fields of the next call. Second, a call that is not due is cheap but not free: it adds two three-dimensional and two two-dimensional host fields to the integrals.</p>
+<p><code>time_end</code> sizes the layer stack. The stack is allocated once, with <code>n_layers_init</code> initialization layers, one layer per scheduled isochrone and one accumulating layer on top. No isochrone is scheduled at or beyond <code>time_end</code> (entries of a <code>layer_file</code> that lie there are skipped with a note), and <code>time_end</code> must be later than <code>time</code>. If the run continues past <code>time_end</code> without a restart, elsa keeps running, but the top layer simply continues to accumulate and no further isochrone is laid down. A restart with a later <code>time_end</code> extends the schedule (see below).</p>
+</section>
+<section id="the-namelist-and-its-defaults-file" class="level2">
+<h2 class="anchored" data-anchor-id="the-namelist-and-its-defaults-file">The namelist and its defaults file</h2>
+<p><code>elsa_init</code> reads a namelist group from a file, both named by the caller. The group need only list the parameters that the run overrides. All other values are taken from the defaults file <code>input/elsa_defaults.nml</code>, which also acts as the schema: a parameter in the user group that does not appear in the defaults file is reported as an error, which catches misspelled names.</p>
+<p>The path <code>input/elsa_defaults.nml</code> is relative to the directory in which the program runs. A host model must therefore carry a copy of this file in its own <code>input/</code> directory, and keep it synchronized with the elsa version against which it links. The parameters are described under <a href="./parameters.html">Parameters</a>.</p>
+</section>
+<section id="initial-state" class="level2">
+<h2 class="anchored" data-anchor-id="initial-state">Initial state</h2>
+<p>At a cold start, elsa fills each ice column with <code>n_layers_init</code> layers of equal thickness. These initialization layers are not isochrones, since elsa has no information on the age of the ice that is present at the start. Their deposition time is set to the missing value. The first isochrone is the surface at the initial time, and every layer above it is dated.</p>
+<p>All ice that is present at initialization is thus treated as older than the initial time, with unknown internal structure. The dated part of the column grows only through accumulation during the run.</p>
+</section>
+<section id="output" class="level2">
+<h2 class="anchored" data-anchor-id="output">Output</h2>
+<p>elsa writes its own NetCDF output when the host asks for it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_write_init(els,"elsa.nc",time)          ! once</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_write_step(els,"elsa.nc",time,n)        ! n = 1, 2, ... along time</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The output directory must exist, since NetCDF does not create it. The file contents are described under <a href="./output.html">Output</a>.</p>
+</section>
+<section id="restart" class="level2">
+<h2 class="anchored" data-anchor-id="restart">Restart</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_restart_write(els,"elsa_restart.nc")</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>...</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy", &amp;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>               restart<span class="kw">=</span><span class="st">"elsa_restart.nc"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A restarted run is bit-identical to the run that never stopped, which <code>test_greenland.x</code> asserts. The following rules apply.</p>
+<ul>
+<li>The layers, the isochrone schedule and the model time are taken from the file. <code>n_layers_init</code> in the namelist is ignored on restart.</li>
+<li>If <code>time_end</code> lies beyond the schedule in the file, the schedule is extended with the isochrones between the restart time and <code>time_end</code>, from <code>layer_resolution</code> or <code>layer_file</code>, and the stack is sized accordingly. The regular schedule remains anchored on the original initial time. An experiment can thus be run in segments, each knowing only its own end time, and lays down the same isochrones as one continuous run.</li>
+<li>If the earlier run continued past the end of its schedule, the scheduled times that it missed are not added afterwards. The ice of that period remains in a single layer.</li>
+<li><code>time_end</code> must be later than the restart time.</li>
+<li>A restart may be written at any time, including between two updates. The forcing integrated since the last update is stored in the file and read back.</li>
+<li>If the <code>time</code> argument differs from the time in the file, elsa warns and uses the file’s time. The first call then spans the gap.</li>
+<li>The host grid must match the one in the file, since the forcing integrals live on it.</li>
+<li><code>dt_coupling</code>, <code>cfl</code> and <code>allow_pos_bmb</code> are read from the namelist as usual, and may be changed across a restart.</li>
+<li>The grid must match: the dimensions, the axes and <code>zeta</code> are compared, and a mismatch stops the program. A changed <code>grid_factor</code> therefore fails.</li>
+<li>Passing <code>restart="None"</code> or an empty string is equivalent to omitting the argument, which allows a host to pass its own restart setting through unconditionally.</li>
+</ul>
+</section>
+<section id="openmp" class="level2">
+<h2 class="anchored" data-anchor-id="openmp">OpenMP</h2>
+<p>With <code>openmp=1</code>, elsa threads the loop over layers in the advection and the loop over columns in the vertical velocity average. The layers do not exchange mass, so each thread writes a disjoint slice of the state. The result is bit-identical to the serial result at any thread count.</p>
+<p>On the 16 km Greenland benchmark with 20 layers, the update takes around 0.38 s on one core and 0.15 s on eight. The speedup is bounded by the serial parts of the update (the horizontal maps and the mass balance), and improves with the number of layers.</p>
+</section>
+<section id="diagnostics-to-watch" class="level2">
+<h2 class="anchored" data-anchor-id="diagnostics-to-watch">Diagnostics to watch</h2>
+<p>Two counters in the state report the columns that elsa has emptied while the host still holds ice there (see <a href="./design.html#emptied-columns">Design</a>). <code>els%now%n_reseed</code> is the count in the last update and <code>els%now%n_reseed_total</code> the count since initialization. elsa prints a note the first time this happens. A few columns per update at thin, strongly ablating margins are expected. A large or growing count indicates that <code>dt_coupling</code> is too long for the ablation rate, or that the forcing is inconsistent with the ice thickness.</p>
+<p>At init, elsa also warns if two scheduled isochrones are closer together than <code>dt_coupling</code>. Layers that are laid down within the same update receive no accumulation and remain at zero thickness.</p>
+</section>
+<section id="limitations" class="level2">
+<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
+<p>The following limitations follow from the present design. Each is a property of the code as it stands, rather than a bug.</p>
+<ul>
+<li><strong>First-order advection.</strong> The upwind scheme is diffusive in the horizontal. A layer-thickness anomaly retains around 27 % of its peak after one solid-body revolution in the <a href="./benchmarks/physics.html">physics</a> benchmark. The isochronal grid removes the vertical diffusion, not the horizontal one.</li>
+<li><strong>Uniform Cartesian grids only.</strong> elsa’s grid is a coarsening of the host grid over the same axes. Stretched or unstructured host grids are rejected.</li>
+<li><strong>Partial coverage at non-integer <code>grid_factor</code>.</strong> elsa’s grid holds <code>floor(nx/grid_factor)</code> cells along x, anchored at the low edge of the host domain. A strip of host cells at the high edge is left uncovered if the ratio is not an integer. This is harmless where the domain edge is ice-free.</li>
+<li><strong>Fixed layer stack within a run.</strong> The stack is sized at init and is not extended during the run. It is extended on restart if <code>time_end</code> requires it.</li>
+<li><strong>Undated initial ice.</strong> The initialization layers carry no age.</li>
+<li><strong>No dye tracer.</strong> The <code>tracer_iso</code> field of v2.0 is not implemented.</li>
+</ul>
 
 
 </section>
@@ -773,4 +896,4 @@ Note
 
 
 
-<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/guide.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>

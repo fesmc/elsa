@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>elsa</title>
+<title>Output – elsa</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -109,10 +109,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed fullcontent quarto-light">
+<body class="nav-sidebar floating nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -130,7 +159,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
@@ -205,7 +234,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">elsa</li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Output</li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -218,14 +247,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-layer-convention" id="toc-the-layer-convention" class="nav-link active" data-scroll-target="#the-layer-convention">The layer convention</a></li>
+  <li><a href="#the-output-file" id="toc-the-output-file" class="nav-link" data-scroll-target="#the-output-file">The output file</a></li>
+  <li><a href="#the-restart-file" id="toc-the-restart-file" class="nav-link" data-scroll-target="#the-restart-file">The restart file</a></li>
+  <li><a href="#reading-isochrones" id="toc-reading-isochrones" class="nav-link" data-scroll-target="#reading-isochrones">Reading isochrones</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/output.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">elsa</h1>
-<p class="subtitle lead">An isochronal model for ice-sheet layer tracing</p>
+<h1 class="title">Output</h1>
+<p class="subtitle lead">The output and restart files, and how to read isochrones from them</p>
 </div>
 
 
@@ -242,127 +282,242 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p><strong>elsa</strong> — the Englacial Layer Simulation Architecture — advects a stack of isochronal layers through an ice-sheet domain. Its vertical axis is <em>time</em>: each layer is bounded by two isochrones, and mass does not exchange between neighbouring layers. Vertical numerical diffusion is therefore eliminated by construction. elsa is driven by a host ice-sheet model, which supplies the horizontal velocity, the ice thickness, and the surface and basal mass balance; elsa does not modify any of these fields.</p>
-<p>The method follows <a href="https://doi.org/10.1017/jog.2016.111">Born (2017)</a>, <a href="https://doi.org/10.5194/tc-15-4539-2021">Born and Robinson (2021)</a> and <a href="https://doi.org/10.5194/gmd-17-6987-2024">Rieckh et al.&nbsp;(2024)</a>. This is a reimplementation of the Bergen ELSA v2.0 rather than a fork. See <a href="./design.html">Design</a> for the departures from the published scheme, and their motivation.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The library, its public API, the NetCDF output, the restart and the full benchmark suite are all in place. elsa is coupled to Yelmo as the layer backend of its passive-tracer subsystem (see <a href="./yelmo.html">Yelmo coupling</a>).</p>
-</div>
-</div>
-<section id="where-to-look" class="level2">
-<h2 class="anchored" data-anchor-id="where-to-look">Where to look</h2>
+<p>elsa writes two kinds of NetCDF file through <code>ncio</code>: a time-resolved output file, and a restart file that holds one instant. Both live on elsa’s own grid, which differs from the host grid if <code>grid_factor</code> is not 1.</p>
+<section id="the-layer-convention" class="level2">
+<h2 class="anchored" data-anchor-id="the-layer-convention">The layer convention</h2>
+<p>The vertical axis of elsa is the layer index, and reading the files requires the following convention.</p>
+<ul>
+<li>Layer 1 is at the bed. Layer <code>n_top</code> is the topmost active layer, which is the one currently receiving accumulation. Layers above <code>n_top</code> have been allocated but not yet laid down, and hold zero thickness.</li>
+<li><code>d_iso(i,j,k)</code> is the thickness of layer <code>k</code>. <code>dsum_iso(i,j,k)</code> is the height of the <strong>top</strong> of layer <code>k</code> above the bed, so that <code>dsum_iso(i,j,n_top)</code> is the ice thickness.</li>
+<li>The deposition time of layer <code>k</code> (<code>t_dep</code> in the state and in the restart file, <code>layer_time</code> in the output file) is the time of the update at which the layer was opened. This is the first update at or after the scheduled isochrone time, so it equals the scheduled time only if an update lands on it, and is otherwise later by less than one coupling period. It is the age label of the isochrone at the <strong>base</strong> of layer <code>k</code>. The ice inside layer <code>k</code> was deposited between <code>layer_time(k)</code> and <code>layer_time(k+1)</code>.</li>
+<li>The initialization layers, <code>1</code> to <code>n_layers_init</code>, carry the missing value <span class="math inline">\(-9999\)</span> as deposition time, as do the layers above <code>n_top</code>. The missing value is written as a plain number and not as a <code>_FillValue</code> attribute.</li>
+</ul>
+<p>The height above the bed of the isochrone deposited at <code>layer_time(k)</code> is therefore <code>dsum_iso(i,j,k-1)</code>, and its depth below the surface is <code>H_ice(i,j) - dsum_iso(i,j,k-1)</code>. The oldest dated isochrone is the base of layer <code>n_layers_init + 1</code>, which is the ice surface at the initial time.</p>
+</section>
+<section id="the-output-file" class="level2">
+<h2 class="anchored" data-anchor-id="the-output-file">The output file</h2>
+<p><code>elsa_write_init</code> creates the file and its axes, and each call to <code>elsa_write_step</code> appends one time slice.</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
-<th>Page</th>
+<th>Dimension</th>
+<th>Size</th>
+<th>Units</th>
 <th>Content</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="./guide.html">User guide</a></td>
-<td>install, build, the host contract, running and restarting</td>
+<td><code>xc</code>, <code>yc</code></td>
+<td>elsa grid</td>
+<td>m</td>
+<td>cell-centre coordinates</td>
 </tr>
 <tr class="even">
-<td><a href="./parameters.html">Parameters</a></td>
-<td>the namelist group, its defaults and how to choose values</td>
+<td><code>layer</code></td>
+<td><code>n_layers</code></td>
+<td>1</td>
+<td>layer index, 1 at the bed</td>
 </tr>
 <tr class="odd">
-<td><a href="./output.html">Output</a></td>
-<td>the output and restart files, and how to read isochrones from them</td>
-</tr>
-<tr class="even">
-<td><a href="./api.html">API</a></td>
-<td>the public routines, the state object and the kernels</td>
-</tr>
-<tr class="odd">
-<td><a href="./yelmo.html">Yelmo coupling</a></td>
-<td>how Yelmo drives elsa through <code>ytrc</code></td>
-</tr>
-<tr class="even">
-<td><a href="./design.html">Design</a></td>
-<td>the departures from the published v2.0 scheme</td>
+<td><code>time</code></td>
+<td>unlimited</td>
+<td>years</td>
+<td>model time of each slice</td>
 </tr>
 </tbody>
 </table>
-</section>
-<section id="the-interface" class="level2">
-<h2 class="anchored" data-anchor-id="the-interface">The interface</h2>
-<p>A host model needs one module and three calls:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> elsa</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">type(elsa_class)</span> <span class="dt">::</span> els</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_init(els,"elsa.nml","elsa",time,time_end,xc,yc,zeta_aa,H_ice,"acx_acy")</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_update(els,time,H_ice,ux,uy,smb,bmb)   ! every host timestep</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">call elsa_end(els)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>elsa_update</code> receives an absolute time, computes its own coupling interval, decides internally whether an update is due, and stores its own previous-step ice thickness. The host therefore calls it unconditionally and manages none of elsa’s internal state. Host fields may be supplied in single or double precision; elsa converts them at the boundary. The <code>stagger</code> argument declares where the host’s velocity samples sit — <code>"acx_acy"</code> for staggered faces (as in Yelmo), or <code>"aa"</code> for cell-centred.</p>
-</section>
-<section id="what-is-new-relative-to-v2.0" class="level2">
-<h2 class="anchored" data-anchor-id="what-is-new-relative-to-v2.0">What is new relative to v2.0</h2>
-<div class="pkg-grid">
-<section id="correct-upwinding" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="correct-upwinding">Correct upwinding</h3>
-<p>Each cell face is upwinded on its own velocity. v2.0 selected the direction for both x-faces from the sign of one, which produced a negative entry on the matrix diagonal in convergent cells and caused the solve to diverge. Three stability guards existed only to mask this behaviour; all have been removed. See <a href="./benchmarks/physics.html">physics</a>.</p>
-</section>
-<section id="no-linear-solver" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="no-linear-solver">No linear solver</h3>
-<p>The advection is now explicit and sub-stepped, so there is no LIS and no system solve. The only dependency of elsa is fesm-utils. v2.0 required LIS, which the user had to build and locate.</p>
-</section>
-<section id="robust-interpolation" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="robust-interpolation">Robust interpolation</h3>
-<p>Any host grid is mapped onto elsa’s grid through one separable, exact stencil, which is built once at initialization. The parameter <code>grid_factor</code> may take any real value ≥ 1, and is no longer restricted to an integer divisor. See <a href="./benchmarks/interp.html">interp</a>.</p>
-</section>
-<section id="restart" class="level3 pkg-card">
-<h3 class="anchored" data-anchor-id="restart">Restart</h3>
-<p>A run that is stopped and restarted is bit-identical to the run that never stopped. v2.0 could not restart at all. See <a href="./benchmarks/greenland.html">greenland</a>.</p>
-</section>
-</div>
-</section>
-<section id="benchmarks" class="level2">
-<h2 class="anchored" data-anchor-id="benchmarks">Benchmarks</h2>
-<p>Every claim above is checked directly. <code>make check</code> runs the Fortran benchmarks, which assert structural properties and exit non-zero on failure; <code>make validate</code> then runs the Julia analysis, which checks the physics against closed-form solutions and produces the figures.</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
 <thead>
 <tr class="header">
-<th>Benchmark</th>
-<th>What it establishes</th>
+<th>Variable</th>
+<th>Dimensions</th>
+<th>Units</th>
+<th>Content</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="./benchmarks/physics.html">physics</a></td>
-<td>advection is stable, positive and mass-conserving at any CFL</td>
+<td><code>layer_time</code></td>
+<td><code>layer</code></td>
+<td>years</td>
+<td>deposition time of each layer</td>
 </tr>
 <tr class="even">
-<td><a href="./benchmarks/interp.html">interp</a></td>
-<td>the grid maps are exact</td>
+<td><code>n_top</code></td>
+<td><code>time</code></td>
+<td>1</td>
+<td>index of the topmost active layer</td>
 </tr>
 <tr class="odd">
-<td><a href="./benchmarks/column.html">column</a></td>
-<td>isochrones follow the Nye analytic solution</td>
+<td><code>H_ice</code></td>
+<td><code>xc, yc, time</code></td>
+<td>m</td>
+<td>ice thickness on elsa’s grid</td>
 </tr>
 <tr class="even">
-<td><a href="./benchmarks/greenland.html">greenland</a></td>
-<td>elsa runs on a real 3D ice sheet, and restarts exactly</td>
+<td><code>d_iso</code></td>
+<td><code>xc, yc, layer, time</code></td>
+<td>m</td>
+<td>layer thickness</td>
+</tr>
+<tr class="odd">
+<td><code>dsum_iso</code></td>
+<td><code>xc, yc, layer, time</code></td>
+<td>m</td>
+<td>height of the layer top above the bed</td>
+</tr>
+<tr class="even">
+<td><code>ux_iso</code></td>
+<td><code>xc, yc, layer, time</code></td>
+<td>m yr<span class="math inline">\(^{-1}\)</span></td>
+<td>layer-mean velocity in x, on acx faces</td>
+</tr>
+<tr class="odd">
+<td><code>uy_iso</code></td>
+<td><code>xc, yc, layer, time</code></td>
+<td>m yr<span class="math inline">\(^{-1}\)</span></td>
+<td>layer-mean velocity in y, on acy faces</td>
 </tr>
 </tbody>
 </table>
+<p>Three properties of this file should be kept in mind.</p>
+<p>First, <code>layer_time</code> has no time dimension. It is rewritten at every step from the state, so the file always holds the deposition times of the layers laid down so far. A slice at an earlier time must be read together with its own <code>n_top</code>, since layers above it did not yet exist at that time.</p>
+<p>Second, the three-dimensional fields are written in single precision, since they dominate the file size. At 3000 m of ice this limits the resolution of <code>dsum_iso</code> to around <span class="math inline">\(2 \times 10^{-4}\)</span> m, which is irrelevant for analysis but means that the output file cannot be used to restart.</p>
+<p>Third, the velocities are located on elsa’s staggered faces, not at the cell centres. <code>ux_iso(i,j,k)</code> sits at <code>xc(i) + dx/2</code>. The last face in each direction carries zero flux and is written as zero.</p>
+<p>Every slice holds all <code>n_layers</code> layers, including those not yet laid down. A long run with many layers and frequent output therefore produces a large file, and the output interval should be chosen accordingly.</p>
 </section>
-<section id="install" class="level2">
-<h2 class="anchored" data-anchor-id="install">Install</h2>
-<p>elsa is a <a href="https://github.com/fesmc/configme">configme</a> package:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install elsa <span class="at">--only</span>     <span class="co"># elsa + fesm-utils</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="the-restart-file" class="level2">
+<h2 class="anchored" data-anchor-id="the-restart-file">The restart file</h2>
+<p><code>elsa_restart_write</code> writes the complete state at one instant. The file also serves as a diagnostic snapshot, but only part of it is read back.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Dimensions</th>
+<th>Precision</th>
+<th>Read back</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>time</code></td>
+<td><code>one</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>time_acc</code></td>
+<td><code>one</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>n_top</code>, <code>i_add</code></td>
+<td><code>one</code></td>
+<td>integer</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>n_reseed_total</code></td>
+<td><code>one</code></td>
+<td>integer</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>n_reseed</code></td>
+<td><code>one</code></td>
+<td>integer</td>
+<td>no</td>
+</tr>
+<tr class="even">
+<td><code>n_layers_init</code></td>
+<td><code>one</code></td>
+<td>integer</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>time_add</code></td>
+<td><code>isochrone</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>d_iso</code></td>
+<td><code>xc, yc, layer</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>H_ice_prev</code></td>
+<td><code>xc, yc</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>t_dep</code></td>
+<td><code>layer</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>smb_acc</code>, <code>bmb_acc</code></td>
+<td><code>xc_src, yc_src</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>ux_acc</code>, <code>uy_acc</code></td>
+<td><code>xc_src, yc_src, zeta</code></td>
+<td>double</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>dsum_iso</code>, <code>ux_iso</code>, <code>uy_iso</code></td>
+<td><code>xc, yc, layer</code></td>
+<td>single</td>
+<td>no</td>
+</tr>
+<tr class="even">
+<td><code>H_ice</code>, <code>smb</code>, <code>bmb</code></td>
+<td><code>xc, yc</code></td>
+<td>single</td>
+<td>no</td>
+</tr>
+<tr class="odd">
+<td><code>ux_lev</code>, <code>uy_lev</code></td>
+<td><code>xc, yc, zeta</code></td>
+<td>single</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>The axes <code>xc</code>, <code>yc</code> and <code>zeta</code> are read back as well, and are compared with the current grid. <code>time</code> is the time of the last update and <code>time_acc</code> the time at which the file was written. The <code>_acc</code> fields are the forcing integrated between the two, on the host grid (<code>xc_src</code>, <code>yc_src</code>). They are zero if the file was written on an update. <code>smb</code>, <code>bmb</code>, <code>ux_lev</code> and <code>uy_lev</code> are the means over the last completed coupling period. <code>time_add</code> is the full isochrone schedule and <code>i_add</code> the index of its next entry. <code>time_add</code> is absent if no isochrone was scheduled. The reasons for carrying each item are given under <a href="./design.html#restart">Design</a>.</p>
+</section>
+<section id="reading-isochrones" class="level2">
+<h2 class="anchored" data-anchor-id="reading-isochrones">Reading isochrones</h2>
+<p>The Julia helpers in <code>analysis/elsa_analysis.jl</code> implement the convention above. <code>ElsaRun(path)</code> opens an output file and converts the missing deposition times to <code>NaN</code>, <code>isochrone_layers</code> returns the layers that have a dated base, and <code>isochrone_height</code> returns the ages and the heights of all isochrones in one column at one time index.</p>
+<p>The depth of one isochrone can also be obtained directly. The following example extracts the depth below the surface of the isochrone that was laid down at <code>t_iso</code>, at the last time slice.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">NCDatasets</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>ds   <span class="op">=</span> <span class="fu">NCDataset</span>(<span class="st">"output/GRL-16KM/elsa.nc"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>lt   <span class="op">=</span> ds[<span class="st">"layer_time"</span>][<span class="op">:</span>]</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>it   <span class="op">=</span> <span class="fu">length</span>(ds[<span class="st">"time"</span>])</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>H    <span class="op">=</span> ds[<span class="st">"H_ice"</span>][<span class="op">:</span>, <span class="op">:</span>, it]</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>dsum <span class="op">=</span> ds[<span class="st">"dsum_iso"</span>][<span class="op">:</span>, <span class="op">:</span>, <span class="op">:</span>, it]</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>t_iso <span class="op">=</span> <span class="fl">1000.0</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>k     <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">&gt;=</span>(t_iso), lt)       <span class="co"># the layer whose base is this isochrone</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>depth <span class="op">=</span> H <span class="op">.-</span> dsum[<span class="op">:</span>, <span class="op">:</span>, k<span class="op">-</span><span class="fl">1</span>]</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>depth[H <span class="op">.&lt;=</span> <span class="fl">0</span>] <span class="op">.=</span> <span class="cn">NaN</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The age of this isochrone at time <code>t</code> is <code>t - lt[k]</code>. A comparison with observed radiostratigraphy requires the depth of a given age, so the isochrone schedule should contain the dated horizons of interest, either through a suitable <code>layer_resolution</code> or through a <code>layer_file</code>.</p>
 
 
 </section>
@@ -773,4 +928,4 @@ Note
 
 
 
-<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/fesmc/elsa/blob/main/output.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/elsa/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
