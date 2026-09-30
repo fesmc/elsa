@@ -36,7 +36,7 @@ module elsa
     public :: elsa_restart_write
     public :: elsa_version
 
-    character(len=*), parameter :: elsa_version = "3.0.0-dev"
+    character(len=*), parameter :: elsa_version = "3.0.0"
 
     ! Fractional slack when comparing model times, which arrive as accumulated
     ! sums and need not land exactly on a multiple of dt_coupling.

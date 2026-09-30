@@ -182,7 +182,6 @@ change in m, i.e., the mass balance multiplied by the time step.
 | `map_scalar(map,f_src,f)` | conservative remap of a cell-centred field |
 | `map_velocity(map,ux_src,uy_src,ux,uy)` | bilinear map of the velocity onto elsa's faces, level by level |
 | `interp_u_column(u_layer,u_lev,zeta,H,dsum)` | thickness-average of a velocity profile over each layer of one column |
-| `interp_u_to_layers(u_layer,u_lev,zeta,H,dsum,n_top)` | the same for every column of a grid |
 
 ## Error handling
 

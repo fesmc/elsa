@@ -70,7 +70,6 @@ module elsa_interp
     public :: map_scalar
     public :: map_velocity
     public :: interp_u_column
-    public :: interp_u_to_layers
 
 contains
 
@@ -256,26 +255,6 @@ contains
     ! ======================================================================
     ! Vertical
     ! ======================================================================
-
-    subroutine interp_u_to_layers(u_layer,u_lev,zeta,H,dsum,n_top)
-        ! Layer-mean velocity for every column of a face grid. H and dsum must
-        ! already be evaluated on that face grid (the caller staggers them).
-        real(wp), intent(out) :: u_layer(:,:,:)
-        real(wp), intent(in)  :: u_lev(:,:,:)
-        real(wp), intent(in)  :: zeta(:)
-        real(wp), intent(in)  :: H(:,:)
-        real(wp), intent(in)  :: dsum(:,:,:)
-        integer,  intent(in)  :: n_top
-
-        integer :: i, j
-
-        do j = 1, size(H,2)
-        do i = 1, size(H,1)
-            call interp_u_column(u_layer(i,j,1:n_top),u_lev(i,j,:),zeta,H(i,j),dsum(i,j,1:n_top))
-        end do
-        end do
-
-    end subroutine interp_u_to_layers
 
     subroutine interp_u_column(u_layer,u_lev,zeta,H,dsum)
         ! Thickness-average of a piecewise-linear velocity profile over each
