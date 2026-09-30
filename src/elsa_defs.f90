@@ -55,15 +55,27 @@ module elsa_defs
         real(wp), allocatable :: ux_iso(:,:,:)    ! [m/yr] acx nodes
         real(wp), allocatable :: uy_iso(:,:,:)    ! [m/yr] acy nodes
 
-        ! Host fields mapped onto elsa's grid, aa nodes.
+        ! Host fields mapped onto elsa's grid, aa nodes. The mass balance is the
+        ! mean over the last coupling period.
         real(wp), allocatable :: H_ice(:,:)       ! [m]    this update
         real(wp), allocatable :: H_ice_prev(:,:)  ! [m]    previous update
         real(wp), allocatable :: smb(:,:)         ! [m/yr]
         real(wp), allocatable :: bmb(:,:)         ! [m/yr]
 
-        ! Host velocity mapped horizontally but not yet vertically. Small: nz levels.
+        ! Host velocity, mean over the last coupling period, mapped horizontally
+        ! but not yet vertically. Small: nz levels.
         real(wp), allocatable :: ux_lev(:,:,:)    ! [m/yr] acx nodes, host sigma levels
         real(wp), allocatable :: uy_lev(:,:,:)    ! [m/yr] acy nodes, host sigma levels
+
+        ! Time integrals of the host's rates since the last update, on the
+        ! host's own grid. Every call to elsa_update adds the interval since the
+        ! previous call, so that the update applies the host's mean forcing over
+        ! the coupling period rather than whatever it was at the final instant.
+        real(wp) :: time_acc                      ! [yr] time the integrals reach to
+        real(wp), allocatable :: smb_acc(:,:)     ! [m]
+        real(wp), allocatable :: bmb_acc(:,:)     ! [m]
+        real(wp), allocatable :: ux_acc(:,:,:)    ! [m] host velocity nodes, host sigma levels
+        real(wp), allocatable :: uy_acc(:,:,:)    ! [m]
 
     end type elsa_state_class
 
@@ -77,9 +89,10 @@ module elsa_defs
 
 contains
 
-    subroutine elsa_alloc(now,nx,ny,nz,n_layers)
+    subroutine elsa_alloc(now,nx,ny,nz,n_layers,nx_src,ny_src)
         type(elsa_state_class), intent(inout) :: now
         integer,                intent(in)    :: nx, ny, nz, n_layers
+        integer,                intent(in)    :: nx_src, ny_src
 
         call elsa_dealloc(now)
 
@@ -97,6 +110,11 @@ contains
 
         allocate(now%ux_lev(nx,ny,nz))
         allocate(now%uy_lev(nx,ny,nz))
+
+        allocate(now%smb_acc(nx_src,ny_src))
+        allocate(now%bmb_acc(nx_src,ny_src))
+        allocate(now%ux_acc(nx_src,ny_src,nz))
+        allocate(now%uy_acc(nx_src,ny_src,nz))
 
         ! Layers carry MV until they are laid down; the init fill and the first
         ! accumulation layer are stamped by elsa_init, the rest by
@@ -116,6 +134,10 @@ contains
         now%bmb        = 0.0_wp
         now%ux_lev     = 0.0_wp
         now%uy_lev     = 0.0_wp
+        now%smb_acc    = 0.0_wp
+        now%bmb_acc    = 0.0_wp
+        now%ux_acc     = 0.0_wp
+        now%uy_acc     = 0.0_wp
 
     end subroutine elsa_alloc
 
@@ -136,6 +158,10 @@ contains
         if (allocated(now%bmb))        deallocate(now%bmb)
         if (allocated(now%ux_lev))     deallocate(now%ux_lev)
         if (allocated(now%uy_lev))     deallocate(now%uy_lev)
+        if (allocated(now%smb_acc))    deallocate(now%smb_acc)
+        if (allocated(now%bmb_acc))    deallocate(now%bmb_acc)
+        if (allocated(now%ux_acc))     deallocate(now%ux_acc)
+        if (allocated(now%uy_acc))     deallocate(now%uy_acc)
 
     end subroutine elsa_dealloc
 

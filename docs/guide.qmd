@@ -113,16 +113,25 @@ call elsa_end(els)
 ```
 
 `elsa_update` is called once per host time step, unconditionally. It compares
-`time` with the time of its last update and returns immediately unless a full
-coupling period `dt_coupling` has elapsed. When an update is due, the time
-step that elsa uses is the elapsed time, which may exceed `dt_coupling` if the
-host time steps do not divide it. The host thus manages neither the coupling
-interval nor the previous ice thickness.
+`time` with the time of its last update and performs an update only when a
+full coupling period `dt_coupling` has elapsed. When an update is due, the
+time step that elsa uses is the elapsed time, which may exceed `dt_coupling`
+if the host time steps do not divide it. The host thus manages neither the
+coupling interval nor the previous ice thickness.
 
-The fields passed at the update are the instantaneous host fields at `time`.
-elsa applies them over the whole elapsed interval. A host whose mass balance
-or velocity varies strongly within one coupling period should therefore
-choose a shorter `dt_coupling`.
+elsa applies the mean forcing of the coupling period. On every call, the
+rates `smb`, `bmb`, `ux` and `uy` are taken to hold over the interval since
+the previous call, and are integrated in time on the host grid. At the
+update, the integrals are divided by the elapsed time and mapped onto elsa's
+grid. The mass that elsa adds to or removes from a column is therefore the
+mass that the host applied, however the mass balance varied within the
+period. `H_ice` is a state rather than a rate, and only its value at the
+update is used.
+
+This has two consequences for the host. First, the call must be made at
+every host time step, since a skipped step would be assigned the fields of
+the next call. Second, a call that is not due is cheap but not free: it adds
+two three-dimensional and two two-dimensional host fields to the integrals.
 
 `time_end` sizes the layer stack. The stack is allocated once, with
 `n_layers_init` initialization layers, one layer per scheduled isochrone and
@@ -193,8 +202,13 @@ A restarted run is bit-identical to the run that never stopped, which
   times that it missed are not added afterwards. The ice of that period
   remains in a single layer.
 - `time_end` must be later than the restart time.
+- A restart may be written at any time, including between two updates. The
+  forcing integrated since the last update is stored in the file and read
+  back.
 - If the `time` argument differs from the time in the file, elsa warns and
-  uses the file's time. The first update then spans the gap.
+  uses the file's time. The first call then spans the gap.
+- The host grid must match the one in the file, since the forcing integrals
+  live on it.
 - `dt_coupling`, `cfl` and `allow_pos_bmb` are read from the namelist as
   usual, and may be changed across a restart.
 - The grid must match: the dimensions, the axes and `zeta` are compared, and
@@ -245,8 +259,6 @@ of the code as it stands, rather than a bug.
   `floor(nx/grid_factor)` cells along x, anchored at the low edge of the host
   domain. A strip of host cells at the high edge is left uncovered if the
   ratio is not an integer. This is harmless where the domain edge is ice-free.
-- **Instantaneous forcing.** The host fields at the update time are applied
-  over the whole coupling period, as described above.
 - **Fixed layer stack within a run.** The stack is sized at init and is not
   extended during the run. It is extended on restart if `time_end` requires
   it.

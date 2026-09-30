@@ -83,6 +83,7 @@ serves as a diagnostic snapshot, but only part of it is read back.
 | Variable | Dimensions | Precision | Read back |
 |---|---|---|---|
 | `time` | `one` | double | yes |
+| `time_acc` | `one` | double | yes |
 | `n_top`, `i_add` | `one` | integer | yes |
 | `n_reseed_total` | `one` | integer | yes |
 | `n_reseed` | `one` | integer | no |
@@ -91,12 +92,18 @@ serves as a diagnostic snapshot, but only part of it is read back.
 | `d_iso` | `xc, yc, layer` | double | yes |
 | `H_ice_prev` | `xc, yc` | double | yes |
 | `t_dep` | `layer` | double | yes |
+| `smb_acc`, `bmb_acc` | `xc_src, yc_src` | double | yes |
+| `ux_acc`, `uy_acc` | `xc_src, yc_src, zeta` | double | yes |
 | `dsum_iso`, `ux_iso`, `uy_iso` | `xc, yc, layer` | single | no |
 | `H_ice`, `smb`, `bmb` | `xc, yc` | single | no |
 | `ux_lev`, `uy_lev` | `xc, yc, zeta` | single | no |
 
 The axes `xc`, `yc` and `zeta` are read back as well, and are compared with
-the current grid. `time_add` is the full isochrone schedule and `i_add` the
+the current grid. `time` is the time of the last update and `time_acc` the
+time at which the file was written. The `_acc` fields are the forcing
+integrated between the two, on the host grid (`xc_src`, `yc_src`). They are
+zero if the file was written on an update. `smb`, `bmb`, `ux_lev` and
+`uy_lev` are the means over the last completed coupling period. `time_add` is the full isochrone schedule and `i_add` the
 index of its next entry. `time_add` is absent if no isochrone was scheduled.
 The reasons for carrying each item are given under
 [Design](design.qmd#restart).

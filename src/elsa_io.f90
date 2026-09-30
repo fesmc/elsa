@@ -40,8 +40,14 @@ contains
     ! every update, so restoring them would have no effect -- see
     ! elsa_restart_read_state.
     !
-    ! d_iso, H_ice_prev and t_dep are written in double precision: they are read
-    ! back, and a restart that loses bits does not reproduce the run it continues.
+    ! The forcing integrals (smb_acc, bmb_acc, ux_acc, uy_acc, on the host's grid)
+    ! and the time they reach to are read back too. A restart written between
+    ! two updates would otherwise lose the part of the coupling period already
+    ! integrated.
+    !
+    ! d_iso, H_ice_prev, t_dep and the integrals are written in double precision:
+    ! they are read back, and a restart that loses bits does not reproduce the run
+    ! it continues.
     ! t_dep in particular cannot be reconstructed once deposition times vary. The
     ! other fields are diagnostic only and never read back, so they are written
     ! single precision like the output in elsa_write_step.
@@ -65,8 +71,11 @@ contains
         call nc_write_dim(filename,"zeta", x=els%map%zeta,units="1")
         call nc_write_dim(filename,"layer",x=1.0_wp,dx=1.0_wp,nx=els%par%n_layers,units="1")
         call nc_write_dim(filename,"one",  x=1.0_wp,dx=1.0_wp,nx=1,units="1")
+        call nc_write_dim(filename,"xc_src",x=els%map%x_src,units="m")
+        call nc_write_dim(filename,"yc_src",x=els%map%y_src,units="m")
 
         call nc_write(filename,"time",         els%now%time,          dim1="one")
+        call nc_write(filename,"time_acc",     els%now%time_acc,      dim1="one")
         call nc_write(filename,"n_top",        els%now%n_top,         dim1="one")
         call nc_write(filename,"i_add",        els%now%i_add,         dim1="one")
         call nc_write(filename,"n_reseed",     els%now%n_reseed,      dim1="one")
@@ -86,6 +95,19 @@ contains
         call nc_write(filename,"t_dep",els%now%t_dep, &
                       dim1="layer",units="years",missing_value=MV, &
                       long_name="Time at which the layer was laid down")
+
+        call nc_write(filename,"smb_acc",els%now%smb_acc, &
+                      dim1="xc_src",dim2="yc_src",units="m", &
+                      long_name="Host smb integrated since the last update")
+        call nc_write(filename,"bmb_acc",els%now%bmb_acc, &
+                      dim1="xc_src",dim2="yc_src",units="m", &
+                      long_name="Host bmb integrated since the last update")
+        call nc_write(filename,"ux_acc",els%now%ux_acc, &
+                      dim1="xc_src",dim2="yc_src",dim3="zeta",units="m", &
+                      long_name="Host velocity (x) integrated since the last update")
+        call nc_write(filename,"uy_acc",els%now%uy_acc, &
+                      dim1="xc_src",dim2="yc_src",dim3="zeta",units="m", &
+                      long_name="Host velocity (y) integrated since the last update")
 
         ! -- diagnostic only, never read back: single precision
         call nc_write(filename,"dsum_iso",real(els%now%dsum_iso,sp), &
@@ -166,6 +188,14 @@ contains
             error stop 1
         end if
 
+        if (nc_size(filename,"xc_src") .ne. els%map%nx_src .or. &
+            nc_size(filename,"yc_src") .ne. els%map%ny_src) then
+            write(*,*) "elsa_restart_read:: Error: restart host grid does not match the host's."
+            write(*,*) "  restart : ", nc_size(filename,"xc_src"), " x ", nc_size(filename,"yc_src")
+            write(*,*) "  current : ", els%map%nx_src, " x ", els%map%ny_src
+            error stop 1
+        end if
+
         if (nc_size(filename,"zeta") .ne. els%map%nz) then
             write(*,*) "elsa_restart_read:: Error: restart has ", nc_size(filename,"zeta"), &
                        " host levels, current grid has ", els%map%nz
@@ -189,6 +219,7 @@ contains
         end if
 
         call nc_read(filename,"time",          els%now%time,          start=[1],count=[1])
+        call nc_read(filename,"time_acc",      els%now%time_acc,      start=[1],count=[1])
         call nc_read(filename,"n_top",         els%now%n_top,         start=[1],count=[1])
         call nc_read(filename,"i_add",         els%now%i_add,         start=[1],count=[1])
         call nc_read(filename,"n_reseed_total",els%now%n_reseed_total,start=[1],count=[1])
@@ -198,6 +229,11 @@ contains
         call nc_read(filename,"d_iso",     els%now%d_iso(:,:,1:nl))
         call nc_read(filename,"H_ice_prev",els%now%H_ice_prev)
         call nc_read(filename,"t_dep",     els%now%t_dep(1:nl))
+
+        call nc_read(filename,"smb_acc",els%now%smb_acc)
+        call nc_read(filename,"bmb_acc",els%now%bmb_acc)
+        call nc_read(filename,"ux_acc", els%now%ux_acc)
+        call nc_read(filename,"uy_acc", els%now%uy_acc)
 
     end subroutine elsa_restart_read_state
 

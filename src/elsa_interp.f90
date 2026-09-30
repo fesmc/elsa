@@ -54,6 +54,10 @@ module elsa_interp
         real(wp), allocatable :: x(:), y(:)
         real(wp), allocatable :: zeta(:)
 
+        ! the host's grid, as the uniform axes the weights were built on
+        integer  :: nx_src, ny_src
+        real(wp), allocatable :: x_src(:), y_src(:)
+
         ! source aa nodes -> elsa aa nodes, conservative
         type(axis_map_class) :: cons_x, cons_y
 
@@ -113,6 +117,14 @@ contains
         do j = 1, ny_src
             ys(j) = y_src(1) + real(j-1,wp)*dy_src
         end do
+
+        map%nx_src = nx_src
+        map%ny_src = ny_src
+        if (allocated(map%x_src)) deallocate(map%x_src)
+        if (allocated(map%y_src)) deallocate(map%y_src)
+        allocate(map%x_src(nx_src),map%y_src(ny_src))
+        map%x_src = xs
+        map%y_src = ys
 
         map%nz = size(zeta)
         if (allocated(map%zeta)) deallocate(map%zeta)
@@ -182,6 +194,8 @@ contains
         if (allocated(map%x))    deallocate(map%x)
         if (allocated(map%y))    deallocate(map%y)
         if (allocated(map%zeta)) deallocate(map%zeta)
+        if (allocated(map%x_src)) deallocate(map%x_src)
+        if (allocated(map%y_src)) deallocate(map%y_src)
 
         call axis_map_end(map%cons_x)
         call axis_map_end(map%cons_y)

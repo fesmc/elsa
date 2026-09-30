@@ -68,6 +68,12 @@ native three-dimensional `ux` and `uy` on the acx and acy nodes, so nothing is
 destaggered. elsa decides internally whether an update is due, according to
 `dt_coupling`.
 
+elsa integrates the mass balance and the velocities over every Yelmo time
+step, and applies their mean over the coupling period (see the
+[user guide](guide.qmd#calling-sequence)). The fields passed after a step are
+taken to hold over that step, which is the case for `tpo%now%smb` and
+`tpo%now%bmb`.
+
 ## The `t_dep_elsa` field
 
 After each update, Yelmo maps the layer stack onto its sigma grid as a

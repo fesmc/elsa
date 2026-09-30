@@ -60,9 +60,10 @@ call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
 | `ux`, `uy` | real `(nx,ny,nz)`, m yr$^{-1}$ | horizontal velocity on the host's sigma levels |
 | `smb`, `bmb` | real `(nx,ny)`, m yr$^{-1}$ | surface and basal mass balance, positive for gain |
 
-The routine returns immediately unless `dt_coupling` has elapsed since the
-last update. This check precedes any conversion of the host fields, so a
-call that is not due costs nothing in either precision. Otherwise it performs the update sequence given under
+Every call adds the interval since the previous call to the time integrals
+of `ux`, `uy`, `smb` and `bmb`, without converting whole arrays in either
+precision. The routine then returns unless `dt_coupling` has elapsed since
+the last update. Otherwise it performs the update sequence given under
 [Design](design.qmd#the-update-sequence). It stops the program if an
 isochrone is due and the layer stack is exhausted, which cannot happen with
 a schedule built at init.
@@ -121,6 +122,7 @@ derived quantities:
 | Field | Shape | Units | Content |
 |---|---|---|---|
 | `time` | scalar | yr | time of the last completed update |
+| `time_acc` | scalar | yr | time of the last call, up to which the forcing is integrated |
 | `n_top` | scalar | 1 | index of the topmost active layer |
 | `i_add` | scalar | 1 | next entry of `par%time_add` to be applied |
 | `n_reseed` | scalar | 1 | columns reseeded at the bed in the last update |
@@ -132,8 +134,10 @@ derived quantities:
 | `uy_iso` | `(nx,ny,n_layers)` | m yr$^{-1}$ | layer-mean velocity, acy faces |
 | `H_ice` | `(nx,ny)` | m | host ice thickness at this update |
 | `H_ice_prev` | `(nx,ny)` | m | host ice thickness at the previous update |
-| `smb`, `bmb` | `(nx,ny)` | m yr$^{-1}$ | host mass balance at this update |
-| `ux_lev`, `uy_lev` | `(nx,ny,nz)` | m yr$^{-1}$ | host velocity on elsa's faces and the host's sigma levels |
+| `smb`, `bmb` | `(nx,ny)` | m yr$^{-1}$ | host mass balance, mean over the last coupling period |
+| `ux_lev`, `uy_lev` | `(nx,ny,nz)` | m yr$^{-1}$ | period-mean host velocity on elsa's faces and the host's sigma levels |
+| `smb_acc`, `bmb_acc` | host `(nx,ny)` | m | host mass balance integrated since the last update |
+| `ux_acc`, `uy_acc` | host `(nx,ny,nz)` | m | host velocity integrated since the last update |
 
 Here `nx` and `ny` are the dimensions of elsa's grid, which equal those of the
 host only for `grid_factor = 1`. The layer convention is described under
@@ -147,6 +151,7 @@ host only for `grid_factor = 1`. The layer convention is described under
 | `dx`, `dy` | grid spacing of elsa's grid, in m |
 | `x(:)`, `y(:)` | cell-centre axes of elsa's grid, in m |
 | `zeta(:)` | the host's sigma levels |
+| `nx_src`, `ny_src`, `x_src(:)`, `y_src(:)` | the host grid |
 | `cons_x`, `cons_y` | conservative weights, host cells to elsa cells |
 | `ux_x`, `ux_y`, `uy_x`, `uy_y` | bilinear weights, host velocity nodes to elsa faces |
 

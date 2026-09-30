@@ -116,7 +116,8 @@ double precision — elsa converts at the boundary, so a host never casts.
 `elsa_update` takes an absolute time, works out its own `dt`, decides internally
 whether an update is due, and keeps its own previous-step ice thickness. The
 host calls it unconditionally, once per timestep, and manages none of elsa's
-bookkeeping. `time_end` is needed at init only to size the layer stack, which is
+bookkeeping. Every call integrates the mass balance and velocity over the host
+step, so an update applies their mean over the coupling period. `time_end` is needed at init only to size the layer stack, which is
 allocated once and never grown.
 
 To restart, write a file and pass it back:

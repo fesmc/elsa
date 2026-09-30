@@ -41,6 +41,7 @@ program test_column
 
     call test_discrete_exact(n_fail)
     call test_nye_convergence(n_fail)
+    call test_time_mean(n_fail)
     call test_single_precision(n_fail)
     call test_layer_file(n_fail)
     call test_stagger(n_fail)
@@ -236,11 +237,104 @@ contains
 
     end subroutine test_nye_convergence
 
+    subroutine test_time_mean(n_fail)
+        ! elsa applies the host's mean forcing over the coupling period, not its
+        ! value at the final instant. An accumulation that alternates about its
+        ! mean from one host step to the next must therefore give the layers of
+        ! the constant one -- the instantaneous value would be off by a third
+        ! here. The run is also stopped between two updates: the restart must
+        ! carry the part of the period already integrated.
+        integer, intent(inout) :: n_fail
+
+        real(wp), parameter :: DT       = 100.0_wp
+        integer,  parameter :: N_HOST   = 4                 ! host steps per coupling period
+        real(wp), parameter :: DT_HOST  = DT/real(N_HOST,wp)
+        real(wp), parameter :: TIME_MID = 10050.0_wp        ! between two updates
+
+        character(len=*), parameter :: FILE_RST = "output/column/elsa_restart.nc"
+
+        type(elsa_class) :: els
+        real(wp) :: x(NX), y(NY), zeta(NZ)
+        real(wp) :: H_ice(NX,NY), smb(NX,NY), bmb(NX,NY)
+        real(wp) :: ux(NX,NY,NZ), uy(NX,NY,NZ)
+        real(wp), allocatable :: d_const(:,:,:), d_ref(:,:,:)
+        real(wp) :: err
+        integer  :: n, n_steps, n_mid
+
+        write(*,*) ""
+        write(*,*) " time-mean forcing"
+
+        call set_divide(x,y,zeta,H_ice,smb,bmb,ux,uy)
+
+        n_steps = N_HOST*nint((TIME_1-TIME_0)/DT)
+        n_mid   = nint((TIME_MID-TIME_0)/DT_HOST)
+
+        ! -- constant accumulation ------------------------------------------------
+        call elsa_init(els,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+        do n = 1, n_steps
+            call elsa_update(els,TIME_0+real(n,wp)*DT_HOST,H_ice,ux,uy,smb,bmb)
+        end do
+        allocate(d_const(size(els%now%d_iso,1),size(els%now%d_iso,2),size(els%now%d_iso,3)))
+        allocate(d_ref,mold=d_const)
+        d_const = els%now%d_iso
+        call elsa_end(els)
+
+        ! -- alternating about the same mean, in one run ------------------------
+        call elsa_init(els,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+        do n = 1, n_steps
+            call elsa_update(els,TIME_0+real(n,wp)*DT_HOST,H_ice,ux,uy,smb_alt(n),bmb)
+        end do
+        d_ref = els%now%d_iso
+
+        err = maxval(abs(d_ref - d_const))/H_CONST
+        write(*,'(a,es9.2)') "   max relative difference to constant forcing: ", err
+        call check(err .lt. 1.0e-12_wp,               "mean forcing is applied   ",n_fail)
+        call check(maxval(abs(els%now%smb - ACC)) .lt. 1.0e-12_wp, &
+                                                      "smb diagnostic is the mean",n_fail)
+        call elsa_end(els)
+
+        ! -- the same, stopped between two updates --------------------------------
+        call elsa_init(els,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
+        do n = 1, n_mid
+            call elsa_update(els,TIME_0+real(n,wp)*DT_HOST,H_ice,ux,uy,smb_alt(n),bmb)
+        end do
+        call check(els%now%time .lt. TIME_MID,        "stopped between updates   ",n_fail)
+        call elsa_restart_write(els,FILE_RST)
+        call elsa_end(els)
+
+        call elsa_init(els,"par/test_column.nml","column",TIME_MID,TIME_1,x,y,zeta,H_ice,"aa", &
+                       restart=FILE_RST)
+        do n = n_mid+1, n_steps
+            call elsa_update(els,TIME_0+real(n,wp)*DT_HOST,H_ice,ux,uy,smb_alt(n),bmb)
+        end do
+
+        call check(maxval(abs(els%now%d_iso - d_ref)) .eq. 0.0_wp, &
+                                                      "mid-period restart exact  ",n_fail)
+
+        call elsa_end(els)
+        deallocate(d_const,d_ref)
+
+    end subroutine test_time_mean
+
+    function smb_alt(n) result(smb)
+        ! Accumulation at host step n: ACC +/- a third, mean ACC over any even
+        ! number of steps.
+        integer, intent(in) :: n
+        real(wp) :: smb(NX,NY)
+
+        if (mod(n,2) .eq. 0) then
+            smb = ACC*(1.0_wp + 1.0_wp/3.0_wp)
+        else
+            smb = ACC*(1.0_wp - 1.0_wp/3.0_wp)
+        end if
+
+    end function smb_alt
+
     subroutine test_single_precision(n_fail)
         ! A single-precision host must get the double-precision answer for the
-        ! same (single-precision) numbers. The host is also called four times per
-        ! coupling period here, so three calls in four are not due and must
-        ! leave the state untouched.
+        ! same (single-precision) numbers. The host is called four times per
+        ! coupling period, so three calls in four are not due and must not
+        ! advance elsa.
         integer, intent(inout) :: n_fail
 
         real(wp), parameter :: DT = 100.0_wp
@@ -264,8 +358,8 @@ contains
         n_steps = nint((TIME_1-TIME_0)/DT)
 
         call elsa_init(els_dp,"par/test_column.nml","column",TIME_0,TIME_1,x,y,zeta,H_ice,"aa")
-        do n = 1, n_steps
-            call elsa_update(els_dp,TIME_0+real(n,wp)*DT,H_ice,ux,uy,smb,bmb)
+        do n = 1, 4*n_steps
+            call elsa_update(els_dp,TIME_0+real(n,wp)*0.25_wp*DT,H_ice,ux,uy,smb,bmb)
         end do
 
         call elsa_init(els_sp,"par/test_column.nml","column",real(TIME_0,sp),real(TIME_1,sp), &
@@ -280,7 +374,7 @@ contains
             if (mod(n,4) .ne. 0 .and. els_sp%now%time .ne. time_prev) gated = .false.
         end do
 
-        call check(gated,                             "calls not due do nothing  ",n_fail)
+        call check(gated,                             "calls not due do not step ",n_fail)
         call check(els_sp%now%n_top .eq. els_dp%now%n_top,"same n_top as double      ",n_fail)
         call check(maxval(abs(els_sp%now%d_iso - els_dp%now%d_iso)) .eq. 0.0_wp, &
                                                       "bit-identical to double   ",n_fail)

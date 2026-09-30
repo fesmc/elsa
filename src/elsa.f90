@@ -12,7 +12,9 @@ module elsa
     ! elsa_update takes an absolute time, works out its own dt, decides for
     ! itself whether an update is due, and keeps its own previous-step ice
     ! thickness. The host calls it unconditionally, once per step, and manages
-    ! none of elsa's bookkeeping. Host fields may be single or double precision.
+    ! none of elsa's bookkeeping. Every call integrates the host's mass balance
+    ! and velocity over the step, so an update applies their mean over the
+    ! coupling period. Host fields may be single or double precision.
     !
     ! Method: Born (2017); Born and Robinson (2021); Rieckh et al. (2024),
     ! Geosci. Model Dev. 17, 6987-7000. See docs/DESIGN.md for where this
@@ -50,6 +52,11 @@ module elsa
     interface elsa_update
         module procedure elsa_update_dp
         module procedure elsa_update_sp
+    end interface
+
+    interface elsa_accumulate
+        module procedure elsa_accumulate_dp
+        module procedure elsa_accumulate_sp
     end interface
 
 contains
@@ -106,7 +113,8 @@ contains
 
         call elsa_map_init(els%map,x,y,zeta,stagger,els%par%grid_factor)
 
-        call elsa_alloc(els%now,els%map%nx,els%map%ny,els%map%nz,els%par%n_layers)
+        call elsa_alloc(els%now,els%map%nx,els%map%ny,els%map%nz,els%par%n_layers, &
+                        els%map%nx_src,els%map%ny_src)
 
         call map_scalar(els%map,H_ice,els%now%H_ice)
 
@@ -116,11 +124,11 @@ contains
 
             call elsa_restart_read_state(els,restart)
 
-            if (abs(els%now%time - time) .gt. TIME_TOL*max(1.0_wp,abs(time))) then
+            if (abs(els%now%time_acc - time) .gt. TIME_TOL*max(1.0_wp,abs(time))) then
                 write(*,'(a)')        " elsa:: Warning: restart time differs from the host's."
-                write(*,'(a,f14.2)')  "   restart : ", els%now%time
+                write(*,'(a,f14.2)')  "   restart : ", els%now%time_acc
                 write(*,'(a,f14.2)')  "   host    : ", time
-                write(*,'(a)')        "   Using the restart time; the first update will span the gap."
+                write(*,'(a)')        "   Using the restart time; the first call will span the gap."
             end if
 
             ! An isochrone that the extended schedule places at the restart time
@@ -145,6 +153,7 @@ contains
             els%now%t_dep(els%now%n_top) = time
 
             els%now%time           = time
+            els%now%time_acc       = time
             els%now%i_add          = 1
             els%now%n_reseed_total = 0
 
@@ -160,6 +169,10 @@ contains
         ! Advance elsa to `time`, if an update is due. All fields are on the
         ! host's grid, in the units elsa's namelist documents: H_ice [m],
         ! ux/uy [m/yr], smb/bmb [m/yr].
+        !
+        ! The rates (ux, uy, smb, bmb) are taken to hold over the interval since
+        ! the previous call, and are integrated on every call. H_ice is a state:
+        ! only its value at the update is used.
 
         type(elsa_class), intent(inout) :: els
         real(dp),         intent(in)    :: time
@@ -167,17 +180,41 @@ contains
         real(dp),         intent(in)    :: ux(:,:,:), uy(:,:,:)
         real(dp),         intent(in)    :: smb(:,:), bmb(:,:)
 
-        real(wp) :: dt
+        call elsa_accumulate(els,time,ux,uy,smb,bmb)
 
         if (.not. elsa_update_due(els,time)) return
 
+        call elsa_step(els,time,H_ice)
+
+    end subroutine elsa_update_dp
+
+    subroutine elsa_step(els,time,H_ice)
+        ! One elsa update, from the forcing integrated since the last one.
+
+        type(elsa_class), intent(inout) :: els
+        real(wp),         intent(in)    :: time
+        real(wp),         intent(in)    :: H_ice(:,:)
+
+        real(wp) :: dt
+
         dt = time - els%now%time
+
+        ! -- the integrals become means over the coupling period
+        els%now%smb_acc = els%now%smb_acc/dt
+        els%now%bmb_acc = els%now%bmb_acc/dt
+        els%now%ux_acc  = els%now%ux_acc/dt
+        els%now%uy_acc  = els%now%uy_acc/dt
 
         ! -- host state onto elsa's grid
         call map_scalar(els%map,H_ice,els%now%H_ice)
-        call map_scalar(els%map,smb,els%now%smb)
-        call map_scalar(els%map,bmb,els%now%bmb)
-        call map_velocity(els%map,ux,uy,els%now%ux_lev,els%now%uy_lev)
+        call map_scalar(els%map,els%now%smb_acc,els%now%smb)
+        call map_scalar(els%map,els%now%bmb_acc,els%now%bmb)
+        call map_velocity(els%map,els%now%ux_acc,els%now%uy_acc,els%now%ux_lev,els%now%uy_lev)
+
+        els%now%smb_acc = 0.0_wp
+        els%now%bmb_acc = 0.0_wp
+        els%now%ux_acc  = 0.0_wp
+        els%now%uy_acc  = 0.0_wp
 
         ! -- tie the stack to the geometry the host's velocities were computed on
         call normalize_layers(els%now%d_iso,els%now%H_ice_prev,els%now%n_top)
@@ -219,7 +256,50 @@ contains
         els%now%H_ice_prev = els%now%H_ice
         els%now%time       = time
 
-    end subroutine elsa_update_dp
+    end subroutine elsa_step
+
+    subroutine elsa_accumulate_dp(els,time,ux,uy,smb,bmb)
+        ! Add the interval since the previous call to the forcing integrals.
+        type(elsa_class), intent(inout) :: els
+        real(dp),         intent(in)    :: time
+        real(dp),         intent(in)    :: ux(:,:,:), uy(:,:,:)
+        real(dp),         intent(in)    :: smb(:,:), bmb(:,:)
+
+        real(wp) :: dt
+
+        dt = time - els%now%time_acc
+
+        if (dt .le. 0.0_wp) return
+
+        els%now%smb_acc = els%now%smb_acc + smb*dt
+        els%now%bmb_acc = els%now%bmb_acc + bmb*dt
+        els%now%ux_acc  = els%now%ux_acc  + ux*dt
+        els%now%uy_acc  = els%now%uy_acc  + uy*dt
+
+        els%now%time_acc = time
+
+    end subroutine elsa_accumulate_dp
+
+    subroutine elsa_accumulate_sp(els,time,ux,uy,smb,bmb)
+        type(elsa_class), intent(inout) :: els
+        real(dp),         intent(in)    :: time
+        real(sp),         intent(in)    :: ux(:,:,:), uy(:,:,:)
+        real(sp),         intent(in)    :: smb(:,:), bmb(:,:)
+
+        real(wp) :: dt
+
+        dt = time - els%now%time_acc
+
+        if (dt .le. 0.0_wp) return
+
+        els%now%smb_acc = els%now%smb_acc + real(smb,wp)*dt
+        els%now%bmb_acc = els%now%bmb_acc + real(bmb,wp)*dt
+        els%now%ux_acc  = els%now%ux_acc  + real(ux,wp)*dt
+        els%now%uy_acc  = els%now%uy_acc  + real(uy,wp)*dt
+
+        els%now%time_acc = time
+
+    end subroutine elsa_accumulate_sp
 
     subroutine elsa_end(els)
         type(elsa_class), intent(inout) :: els
@@ -255,12 +335,14 @@ contains
         real(sp),         intent(in)    :: ux(:,:,:), uy(:,:,:)
         real(sp),         intent(in)    :: smb(:,:), bmb(:,:)
 
-        ! Gate before converting: the host calls every timestep, and most calls
-        ! are not due.
+        ! The rates are integrated in place, without converting whole arrays,
+        ! and H_ice is converted only when an update is due: the host calls every
+        ! timestep, and most calls are not.
+        call elsa_accumulate(els,real(time,dp),ux,uy,smb,bmb)
+
         if (.not. elsa_update_due(els,real(time,dp))) return
 
-        call elsa_update_dp(els,real(time,dp),real(H_ice,dp), &
-                            real(ux,dp),real(uy,dp),real(smb,dp),real(bmb,dp))
+        call elsa_step(els,real(time,dp),real(H_ice,dp))
 
     end subroutine elsa_update_sp
 

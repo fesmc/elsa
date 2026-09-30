@@ -159,10 +159,13 @@ something that elsa should correct for silently.
 
 ## The update sequence
 
-`elsa_update` receives an absolute time and does nothing unless a coupling
-period has elapsed. When it fires, the sequence is:
+`elsa_update` receives an absolute time. On every call it integrates the
+host's smb, bmb and velocities over the interval since the previous call. It
+does nothing further unless a coupling period has elapsed. When it fires, the
+sequence is:
 
-1. Map $H_\mathrm{ice}$, smb, bmb and the velocities onto elsa's grid.
+1. Divide the integrals by the elapsed time, and map $H_\mathrm{ice}$ and the
+   period-mean smb, bmb and velocities onto elsa's grid.
 2. Normalize the layer stack onto $H_\mathrm{ice, prev}$ — the host thickness
    on which the incoming velocities were computed.
 3. Add smb$\cdot$dt to the top layer and bmb$\cdot$dt to the bottom, exhausting
@@ -196,6 +199,22 @@ A layer is laid down at the first update at or after its scheduled time, and
 its deposition time `t_dep` records the time of that update rather than the
 scheduled one. The base of the layer is the ice surface at that update, so
 this is the age that the layer boundary actually carries.
+
+### Time-mean forcing
+
+The update applies the mean of the host's forcing over the coupling period.
+v2.0 applied the fields of the final instant over the whole period, as did
+earlier versions of this implementation. This is exact for a steady host, but
+it is inconsistent with the host's mass budget whenever the mass balance
+varies within a period: the host's ice thickness reflects the integrated
+mass balance, while the layers would receive the last value multiplied by the
+period. The normalization then hides the difference by rescaling all layers,
+which misplaces the isochrones.
+
+The integrals are kept on the host grid and mapped once per update. The maps
+are linear, so that mapping the mean is identical to averaging the mapped
+fields, at a fraction of the cost. The ice thickness is a state and is not
+averaged.
 
 ### Emptied columns
 
@@ -357,15 +376,18 @@ interfaces and converted at the boundary, so the host never casts. Yelmo's
 `elsa_restart_write` writes the full state object, so that the file also
 serves as a single-slice diagnostic snapshot. Only the part that cannot be
 reconstructed is read back: `d_iso`, `H_ice_prev`, `t_dep`, `time`, `n_top`,
-`i_add`, `n_reseed_total`, `n_layers_init`, and the isochrone schedule
-`time_add`. `dsum_iso` is derived from `d_iso`, and the velocities and mass
+`i_add`, `n_reseed_total`, `n_layers_init`, the isochrone schedule
+`time_add`, and the forcing integrals with the time they reach to
+(`smb_acc`, `bmb_acc`, `ux_acc`, `uy_acc`, `time_acc`). The integrals allow a
+restart to be written between two updates. `dsum_iso` is derived from `d_iso`, and the velocities and mass
 balance are remapped from the host on every update, so restoring them would
 have no effect.
 
 Three details matter, and the round-trip test would fail without the first
 two:
 
-  - `d_iso`, `H_ice_prev` and `t_dep` are written in **double** precision,
+  - `d_iso`, `H_ice_prev`, `t_dep` and the forcing integrals are written in
+    **double** precision,
     unlike the diagnostic fields, which are single. A restart that loses bits
     does not reproduce the run that it continues.
   - `time_add` travels in the restart file, rather than being regenerated from
