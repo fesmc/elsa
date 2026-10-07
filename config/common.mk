@@ -23,6 +23,12 @@ ifeq ($(openmp), 1)
     FFLAGS += $(FFLAGS_OPENMP)
 endif
 
+# Position-independent code (make pic=1): needed when the static library is
+# linked into a shared library on Linux (e.g. yelmo's C API).
+ifeq ($(pic), 1)
+    FFLAGS += -fPIC
+endif
+
 # elsa build outputs, for downstream linking by a consumer (e.g. yelmox, which
 # clones this checkout at yelmox/elsa alongside yelmo and FastIsostasy).
 ELSAROOT = ${CURDIR}
