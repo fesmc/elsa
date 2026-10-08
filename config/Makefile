@@ -89,12 +89,16 @@ obj_elsa =	$(objdir)/elsa_precision.o \
 ##
 ###############################################
 
-# Static library compilation
-elsa-static: $(obj_elsa)
-	ar rc $(objdir)/libelsa.a $(obj_elsa)
-	ranlib $(objdir)/libelsa.a
+# Static library compilation. The archive is a file target, so its mtime only
+# changes when an object does (hosts such as yelmo depend on it to rebuild
+# after a type change).
+elsa-static: $(objdir)/libelsa.a
+
+$(objdir)/libelsa.a: $(obj_elsa)
+	ar rc $@ $(obj_elsa)
+	ranlib $@
 	@echo " "
-	@echo "    $(objdir)/libelsa.a is ready."
+	@echo "    $@ is ready."
 	@echo " "
 
 # Benchmark: the elsa_physics kernels. Advection of a blob under uniform,
