@@ -362,14 +362,14 @@ contains
             call elsa_update(els_dp,TIME_0+real(n,wp)*0.25_wp*DT,H_ice,ux,uy,smb,bmb)
         end do
 
-        call elsa_init(els_sp,"par/test_column.nml","column",real(TIME_0,sp),real(TIME_1,sp), &
+        call elsa_init(els_sp,"par/test_column.nml","column",TIME_0,TIME_1, &
                        real(x,sp),real(y,sp),real(zeta,sp),real(H_ice,sp),"aa")
 
         gated = .true.
         do n = 1, 4*n_steps
             time      = TIME_0 + real(n,wp)*0.25_wp*DT
             time_prev = els_sp%now%time
-            call elsa_update(els_sp,real(time,sp),real(H_ice,sp), &
+            call elsa_update(els_sp,time,real(H_ice,sp), &
                              real(ux,sp),real(uy,sp),real(smb,sp),real(bmb,sp))
             if (mod(n,4) .ne. 0 .and. els_sp%now%time .ne. time_prev) gated = .false.
         end do

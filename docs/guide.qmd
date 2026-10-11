@@ -93,7 +93,7 @@ program with a message.
 The mass balance terms are positive for mass gain. A positive `smb` is
 accumulation and a positive `bmb` is basal freeze-on. All host fields may be
 passed in single or in double precision, but not in a mixture of the two
-within one call.
+within one call. The model time is always double precision.
 
 ## Calling sequence
 
