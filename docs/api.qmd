@@ -34,8 +34,8 @@ call elsa_init(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger [,restart
 |---|---|---|
 | `els` | `type(elsa_class)`, inout | the elsa object |
 | `filename`, `group` | character | the namelist file and the group to read |
-| `time` | real, yr | the initial time |
-| `time_end` | real, yr | the end of the run, later than `time`, which sizes the layer stack |
+| `time` | real(dp), yr | the initial time |
+| `time_end` | real(dp), yr | the end of the run, later than `time`, which sizes the layer stack |
 | `x`, `y` | real `(nx)`, `(ny)`, m | the host's cell-centre axes |
 | `zeta` | real `(nz)` | the host's sigma levels, 0 at the bed to 1 at the surface |
 | `H_ice` | real `(nx,ny)`, m | the initial ice thickness |
@@ -44,8 +44,9 @@ call elsa_init(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger [,restart
 
 The routine reads the parameters, builds the isochrone schedule and the grid
 maps, allocates the state and fills the initial layers. It ends by printing a
-summary of the configuration. All real arguments are either single or double
-precision. `elsa_init` may be called again on an object after `elsa_end`.
+summary of the configuration. `time` and `time_end` are double precision; all
+other real arguments are either single or double precision. `elsa_init` may be
+called again on an object after `elsa_end`.
 
 ### `elsa_update`
 
@@ -55,7 +56,7 @@ call elsa_update(els,time,H_ice,ux,uy,smb,bmb)
 
 | Argument | Type | Content |
 |---|---|---|
-| `time` | real, yr | the current absolute model time |
+| `time` | real(dp), yr | the current absolute model time |
 | `H_ice` | real `(nx,ny)`, m | ice thickness |
 | `ux`, `uy` | real `(nx,ny,nz)`, m yr$^{-1}$ | horizontal velocity on the host's sigma levels |
 | `smb`, `bmb` | real `(nx,ny)`, m yr$^{-1}$ | surface and basal mass balance, positive for gain |

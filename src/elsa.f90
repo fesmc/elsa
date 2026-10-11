@@ -14,7 +14,8 @@ module elsa
     ! thickness. The host calls it unconditionally, once per step, and manages
     ! none of elsa's bookkeeping. Every call integrates the host's mass balance
     ! and velocity over the step, so an update applies their mean over the
-    ! coupling period. Host fields may be single or double precision.
+    ! coupling period. Host fields may be single or double precision; the
+    ! model time is double precision.
     !
     ! Method: Born (2017); Born and Robinson (2021); Rieckh et al. (2024),
     ! Geosci. Model Dev. 17, 6987-7000. See docs/DESIGN.md for where this
@@ -311,26 +312,27 @@ contains
     end subroutine elsa_end
 
     ! ======================================================================
-    ! Single-precision entry points. A host never casts.
+    ! Single-precision entry points. A host never casts. Model time is
+    ! double precision in all entry points.
     ! ======================================================================
 
     subroutine elsa_init_sp(els,filename,group,time,time_end,x,y,zeta,H_ice,stagger,restart)
         type(elsa_class),           intent(inout) :: els
         character(len=*),           intent(in)    :: filename, group
-        real(sp),                   intent(in)    :: time, time_end
+        real(dp),                   intent(in)    :: time, time_end
         real(sp),                   intent(in)    :: x(:), y(:), zeta(:)
         real(sp),                   intent(in)    :: H_ice(:,:)
         character(len=*),           intent(in)    :: stagger
         character(len=*), optional, intent(in)    :: restart
 
-        call elsa_init_dp(els,filename,group,real(time,dp),real(time_end,dp), &
+        call elsa_init_dp(els,filename,group,time,time_end, &
                           real(x,dp),real(y,dp),real(zeta,dp),real(H_ice,dp),stagger,restart)
 
     end subroutine elsa_init_sp
 
     subroutine elsa_update_sp(els,time,H_ice,ux,uy,smb,bmb)
         type(elsa_class), intent(inout) :: els
-        real(sp),         intent(in)    :: time
+        real(dp),         intent(in)    :: time
         real(sp),         intent(in)    :: H_ice(:,:)
         real(sp),         intent(in)    :: ux(:,:,:), uy(:,:,:)
         real(sp),         intent(in)    :: smb(:,:), bmb(:,:)
@@ -338,11 +340,11 @@ contains
         ! The rates are integrated in place, without converting whole arrays,
         ! and H_ice is converted only when an update is due: the host calls every
         ! timestep, and most calls are not.
-        call elsa_accumulate(els,real(time,dp),ux,uy,smb,bmb)
+        call elsa_accumulate(els,time,ux,uy,smb,bmb)
 
-        if (.not. elsa_update_due(els,real(time,dp))) return
+        if (.not. elsa_update_due(els,time)) return
 
-        call elsa_step(els,real(time,dp),real(H_ice,dp))
+        call elsa_step(els,time,real(H_ice,dp))
 
     end subroutine elsa_update_sp
 
