@@ -5,5 +5,5 @@
 # dependency tags.
 package = "elsa"
 deps = [
-    "fesm-utils:stable",
+    "fesm-utils:v1.4",
 ]
