@@ -1,7 +1,9 @@
 # configme manifest. Names this checkout's primary package and the packages it
 # depends on. Committed, so the checkout is recognised whatever its directory is
 # called (this one is cloned as `fesmc-elsa`, not `elsa`).
+# Pins: stable (== main) for every dependency; a tagged release pins the
+# dependency tags.
 package = "elsa"
 deps = [
-    "fesm-utils",
+    "fesm-utils:stable",
 ]
